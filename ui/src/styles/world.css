@@ -1,0 +1,451 @@
+/* ── 2D office world ─────────────────────────────────────────────────── */
+
+.world {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  gap: 0;
+}
+
+.world-stage {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  border-radius: 14px;
+  background:
+    radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.04), transparent 60%),
+    var(--panel, #14161c);
+}
+
+/* Top-down carpet/tile floor. */
+.world-floor {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size: 46px 46px;
+  pointer-events: none;
+}
+
+.world-agents {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 18px 26px;
+  padding: 38px 30px;
+  height: 100%;
+  overflow: auto;
+}
+
+/* ── Agent avatar (a desk + a wandering puck + a label) ──────────────── */
+
+.world-agent {
+  position: relative;
+  width: 150px;
+  height: 168px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+}
+
+/* The desk: a little rounded slab the avatar stands near. */
+.world-desk {
+  position: absolute;
+  left: 50%;
+  bottom: 30px;
+  transform: translateX(-50%);
+  width: 92px;
+  height: 40px;
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.10), rgba(255, 255, 255, 0.03));
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.28);
+}
+
+.world-agent-puck {
+  position: relative;
+  z-index: 2;
+  width: 56px;
+  height: 56px;
+  margin-bottom: 44px;
+  display: grid;
+  place-items: center;
+  animation:
+    world-wander var(--wander-dur, 16s) ease-in-out var(--wander-delay, 0s) infinite,
+    world-bob var(--bob-dur, 3s) ease-in-out infinite;
+}
+
+.world-agent-face {
+  font-size: 34px;
+  line-height: 1;
+  filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.4));
+  user-select: none;
+}
+
+.world-agent-ring {
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  transition: border-color 0.25s ease;
+}
+
+.world-agent-think {
+  position: absolute;
+  top: -14px;
+  right: -10px;
+  font-size: 16px;
+  animation: world-bob 1.8s ease-in-out infinite;
+}
+
+.world-agent-label {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  pointer-events: none;
+}
+
+.world-agent-name {
+  font-size: 12.5px;
+  font-weight: 600;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.world-agent-status {
+  font-size: 10.5px;
+  color: var(--muted, #8a8f98);
+  text-transform: lowercase;
+}
+
+/* Working state: glowing ring + accent status. */
+.world-agent.is-working .world-agent-ring {
+  border-color: var(--ok, #3fb950);
+  animation: world-pulse 1.6s ease-out infinite;
+}
+
+.world-agent.is-working .world-agent-status {
+  color: var(--ok, #3fb950);
+}
+
+.world-agent.is-working .world-agent-puck {
+  /* Working agents stay closer to their desk (less wandering). */
+  animation-duration: calc(var(--wander-dur, 16s) * 1.6), var(--bob-dur, 3s);
+}
+
+/* Selected state. */
+.world-agent.is-selected .world-agent-ring {
+  border-color: var(--accent, #4c8dff);
+  box-shadow: 0 0 0 3px rgba(76, 141, 255, 0.25);
+}
+
+.world-agent.is-selected .world-agent-name {
+  color: var(--accent, #4c8dff);
+}
+
+.world-agent:hover .world-agent-puck {
+  transform: scale(1.06);
+}
+
+/* ── Side panel ──────────────────────────────────────────────────────── */
+
+.world-panel {
+  flex: 0 0 340px;
+  width: 340px;
+  margin-left: 14px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-radius: 14px;
+  background: var(--panel, #14161c);
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+  overflow: hidden;
+  animation: world-panel-in 0.18s ease-out;
+}
+
+.world-panel-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+}
+
+.world-panel-face {
+  width: 64px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  overflow: hidden;
+}
+
+.world-panel-id {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.world-panel-name {
+  font-weight: 600;
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.world-panel-model {
+  font-size: 11px;
+  color: var(--muted, #8a8f98);
+}
+
+.world-panel-state {
+  font-size: 11px;
+  color: var(--muted, #8a8f98);
+  white-space: nowrap;
+}
+
+.world-panel-state.on {
+  color: var(--ok, #3fb950);
+}
+
+.world-panel-close {
+  border: none;
+  background: transparent;
+  color: var(--muted, #8a8f98);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+.world-panel-close:hover {
+  color: var(--fg, #fff);
+}
+
+.world-panel-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 12px 14px;
+}
+
+.world-feed-empty {
+  color: var(--muted, #8a8f98);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.world-feed {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.world-feed-row {
+  font-size: 12px;
+  line-height: 1.45;
+  padding: 7px 9px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.world-feed-row.stream {
+  background: rgba(76, 141, 255, 0.10);
+}
+
+.world-feed-role {
+  display: inline-block;
+  font-size: 9.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted, #8a8f98);
+  margin-right: 6px;
+}
+
+.world-feed-text {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.world-feed-working {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11.5px;
+  color: var(--ok, #3fb950);
+  margin-top: 2px;
+}
+
+.world-panel-compose {
+  border-top: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+  padding: 10px 12px 12px;
+}
+
+.world-compose-input {
+  width: 100%;
+  resize: vertical;
+  box-sizing: border-box;
+  border-radius: 8px;
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
+  background: var(--bg, #0d0f14);
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+  padding: 8px 10px;
+}
+
+.world-compose-input:focus {
+  outline: none;
+  border-color: var(--accent, #4c8dff);
+}
+
+.world-compose-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.world-send {
+  flex: 1 1 auto;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font: inherit;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  color: #fff;
+  background: var(--accent, #4c8dff);
+}
+
+.world-send:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.world-open-chat {
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.14));
+  border-radius: 8px;
+  padding: 8px 12px;
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+  color: inherit;
+  background: transparent;
+}
+
+.world-open-chat:hover {
+  border-color: var(--accent, #4c8dff);
+}
+
+/* ── Empty / loading ─────────────────────────────────────────────────── */
+
+.world-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 100%;
+  text-align: center;
+  color: var(--muted, #8a8f98);
+}
+
+.world-empty-sub {
+  max-width: 360px;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.world-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ok, #3fb950);
+  animation: world-pulse 1.4s ease-out infinite;
+}
+
+/* ── Pixel character (CC0 sprite sheet, animated walk) ───────────────── */
+
+.sprite-char {
+  width: 48px;
+  height: 48px;
+  background-repeat: no-repeat;
+  /* 4×7 grid of 16px frames, scaled 3× → 192×336; top row = front-facing. */
+  background-size: 192px 336px;
+  background-position: 0 0;
+  image-rendering: pixelated;
+  filter: hue-rotate(var(--hue, 0deg));
+  /* Walk cycle: step through the 4 columns of the front-facing row. */
+  animation: sprite-walk 0.7s steps(4) infinite;
+}
+
+.sprite-char--lg {
+  transform: scale(1.3);
+  transform-origin: center;
+}
+
+/* Working agents stand at their desk (freeze on the idle frame). */
+.world-agent.is-working .sprite-char {
+  animation-play-state: paused;
+  background-position: 0 0;
+}
+
+/* ── Keyframes ───────────────────────────────────────────────────────── */
+
+@keyframes sprite-walk {
+  from { background-position: 0 0; }
+  to { background-position: -192px 0; }
+}
+
+@keyframes world-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+
+@keyframes world-wander {
+  0% { transform: translate(0, 0); }
+  20% { transform: translate(16px, -8px); }
+  40% { transform: translate(28px, 6px); }
+  60% { transform: translate(6px, 12px); }
+  80% { transform: translate(-18px, 2px); }
+  100% { transform: translate(0, 0); }
+}
+
+@keyframes world-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(63, 185, 80, 0.45); }
+  70% { box-shadow: 0 0 0 12px rgba(63, 185, 80, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(63, 185, 80, 0); }
+}
+
+@keyframes world-panel-in {
+  from { opacity: 0; transform: translateX(12px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@media (max-width: 760px) {
+  .world.has-panel .world-stage { display: none; }
+  .world-panel { flex-basis: 100%; width: 100%; margin-left: 0; }
+}

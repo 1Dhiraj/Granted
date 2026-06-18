@@ -1,0 +1,8 @@
+Character sprites: "Ninja Adventure" asset pack by Pixel-Boy and AAA.
+License: CC0 1.0 (public domain) — free for commercial use, no attribution required.
+Source: https://pixel-boy.itch.io/ninja-adventure-asset-pack
+        https://github.com/pixel-boy/NinjaAdventure
+
+Credit kept here voluntarily as good practice; CC0 imposes no obligation.
+Files: ninja_blue.png, samurai_blue.png, samurai_green.png
+Each sheet is a 4x7 grid of 16px frames; the top row is the front-facing walk cycle.

@@ -1,0 +1,26 @@
+{
+  "id": "task-router",
+  "enabledByDefault": false,
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "browserModel": {
+        "type": "string",
+        "description": "Model ref used when a message is classified as a browser-automation task (e.g. \"together/moonshotai/Kimi-K2.6\"). Falls back to desktopModel when unset."
+      },
+      "desktopModel": {
+        "type": "string",
+        "description": "Model ref used when a message is classified as a desktop-automation task. Falls back to browserModel when unset."
+      },
+      "classifierModel": {
+        "type": "string",
+        "description": "Cheap/free model ref used to classify messages the keyword heuristics can't decide (e.g. \"google/gemini-3.5-flash\"). When unset, undecided messages are not rerouted."
+      },
+      "stickyMinutes": {
+        "type": "number",
+        "description": "After a session is routed to an automation model, follow-up messages keep that model for this many minutes since the last automation-classified message (default 30). Set 0 to disable."
+      }
+    }
+  }
+}

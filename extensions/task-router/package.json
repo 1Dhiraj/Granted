@@ -1,0 +1,15 @@
+{
+  "name": "@openclaw/task-router-plugin",
+  "version": "2026.4.7",
+  "private": true,
+  "description": "OpenClaw automatic task routing: classifies messages as browser/desktop/chat and picks the model per run",
+  "type": "module",
+  "devDependencies": {
+    "@openclaw/plugin-sdk": "workspace:*"
+  },
+  "openclaw": {
+    "extensions": [
+      "./index.ts"
+    ]
+  }
+}
