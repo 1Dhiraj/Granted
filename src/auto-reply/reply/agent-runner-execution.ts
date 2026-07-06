@@ -1371,10 +1371,16 @@ export async function runAgentTurnWithFallback(params: {
         ? sanitizeUserFacingText(message, { errorContext: true })
         : message;
       const trimmedMessage = safeMessage.replace(/\.\s*$/, "");
-      const fallbackText = isBilling
-        ? BILLING_ERROR_USER_MESSAGE
-        : isRateLimit
-          ? buildRateLimitCooldownMessage(err)
+      // Spend-limit blocks must surface verbatim: hiding them behind the generic
+      // "Something went wrong" text made the agent look broken (accepts the task,
+      // then silently never runs) when it was actually an intentional cost cap.
+      const isSpendLimit = message.includes("Spend limit reached");
+      const fallbackText = isSpendLimit
+        ? `⚠️ ${trimmedMessage}`
+        : isBilling
+          ? BILLING_ERROR_USER_MESSAGE
+          : isRateLimit
+            ? buildRateLimitCooldownMessage(err)
           : isContextOverflow
             ? "⚠️ Context overflow — prompt too large for this model. Try a shorter message or a larger-context model."
             : isRoleOrderingError

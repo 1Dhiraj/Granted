@@ -138,6 +138,12 @@ const DesktopToolSchema = Type.Object(
           "For screenshot: overlay a labeled 100px coordinate grid. Use when the snapshot has no elements (canvas/GPU apps) — read the target's x,y off the grid, then act kind=click x=.. y=..",
       }),
     ),
+    window: Type.Optional(
+      Type.Boolean({
+        description:
+          "For screenshot: capture only the TARGET window's own pixels (set title to pick it, else the foreground window). Works even when that window is BEHIND others / not in the foreground — use this to see a background app. Coordinates in the image are relative to the window (its screen position is returned in rect).",
+      }),
+    ),
   },
   { additionalProperties: false },
 );
@@ -311,19 +317,11 @@ export function createDesktopTool(opts?: {
     label: "Desktop",
     name: "desktop",
     description: [
-      "Control the local Windows desktop — any application — via UI Automation and synthesized input.",
-      "REQUIRED WORKFLOW — follow this sequence for every desktop task:",
-      "(1) apps: list open windows.",
-      "(2) launch (new app) or focus (existing window) so the target window is foreground. After launch, give it a moment / use wait to confirm it appeared.",
-      "(3) snapshot: by default reads the FOREGROUND window — right after you launch or focus an app, that IS your target, so just call snapshot with NO title. Only pass title when your target is deliberately in the background. NEVER guess a title (a window's title is often the document/workspace name, not the app name — e.g. Notion's title is your workspace name); if a title-based call fails, drop the title and use the foreground window instead of retrying with another guess. Returns element refs like e12 with screen coordinates. In dense apps use find (name=<text substring>, optional role; title optional) to locate elements without a full snapshot.",
-      "PREFER KEYBOARD SHORTCUTS for app commands instead of hunting menus/buttons — they are far more reliable: e.g. Ctrl+N (new page/document/tab in most apps incl. Notion), Ctrl+S (save), Ctrl+T (new tab), Ctrl+F (find), Enter to confirm. After a shortcut, often you can just type the name/text directly. This avoids fragile coordinate clicks in web-based apps (Notion, Slack, Discord, VS Code).",
-      "(4) act: interact using ONLY refs from the most recent snapshot/find — click ref, type text, key combos.",
-      "(5) Verify: read ref=eN returns one element's current text/value (cheaper and fresher than a full re-snapshot). Re-snapshot after layout changes; refs go stale immediately.",
-      'ACT KINDS: click (ref or x/y; button, doubleClick), type (SHORT text into the FOCUSED control — click the field first), paste (text via clipboard+ctrl+v — ALWAYS prefer paste over type for text longer than ~80 chars or multiline), key (e.g. "enter", "ctrl+s", "alt+f4"), scroll (scrollDelta notches, optional x/y), move, drag (ref/x,y → toRef/toX,toY), invoke/toggle/expand/collapse/select (UIA patterns on ref — more reliable than click for checkboxes, combo items and tree nodes).',
-      "OTHER ACTIONS (title is OPTIONAL on all of these — omit to use the foreground window): window (windowOp=maximize|minimize|restore|close|move|resize — maximize the target before long interactions so refs stay valid), wait (optional title+name+role, timeoutMs — polls until window/element appears), clipboard (clipboardOp=get|set, text — get reads what an app put on the clipboard, e.g. after ctrl+c to read selected text), read (ref or x/y, maxChars).",
-      "Use screenshot ONLY when the snapshot tree is empty or lacks needed info (canvas-rendered apps); screenshot annotate=true overlays labeled boxes for the latest refs so the image and refs line up. VISION FALLBACK for apps with an empty tree: screenshot grid=true overlays a labeled 100px coordinate grid — read the target's x,y from the grid and act kind=click x/y; verify with a fresh grid screenshot after each click.",
-      'RECOVERY: if typed text does not appear in the target field, an open menu or popup is probably capturing input — act kind=key keys="esc", re-snapshot, and try again. type aborts with focus-changed/user-mouse-moved when the foreground window changes or the human moves the mouse mid-type: re-focus and retry (or stop if the user is active).',
-      "Windows only. Mouse and keyboard are shared with the human user — act deliberately and never move erratically. Input cannot reach UAC elevation prompts or elevated apps when the gateway is not elevated.",
+      "Control the local Windows desktop (any app) via UI Automation + synthesized input. Windows only; shares the real mouse/keyboard; cannot reach UAC/elevated prompts.",
+      "Flow: launch or focus the app, then snapshot (NO title = foreground window; pass title only for a background window — never guess a title), then act on refs (e12) from the LATEST snapshot, then verify with read. Prefer keyboard shortcuts (Ctrl+N/S/T/F, Enter) over hunting menus. Use find (name, optional role) instead of a full snapshot in dense apps. Refs go stale after any layout change — re-snapshot.",
+      "ACTIONS: apps (list windows) · launch (app) · focus (title) · snapshot (title optional) · find (name, role) · act · read (ref, maxChars) · window (windowOp=maximize|minimize|restore|close|move|resize) · wait (name/role, timeoutMs) · clipboard (clipboardOp=get|set) · screenshot.",
+      'ACT KINDS: click (ref or x/y) · type (SHORT text into focused field) · paste (prefer for long/multiline text) · key (e.g. "ctrl+s") · scroll (scrollDelta) · move · drag (ref→toRef) · invoke/toggle/expand/collapse/select (UIA patterns on a ref — more reliable than click for checkboxes/combos/tree nodes).',
+      "SCREENSHOT (only when the tree is empty/insufficient, e.g. canvas/GPU apps): grid=true overlays a coordinate grid → read x,y and act kind=click x/y. window=true title=<app> captures a background window's own pixels. annotate=true labels the latest refs.",
     ].join(" "),
     parameters: DesktopToolSchema,
     execute: async (_toolCallId, args) => {
@@ -488,6 +486,8 @@ export function createDesktopTool(opts?: {
           );
           const annotate = params.annotate === true;
           const grid = params.grid === true;
+          const windowOnly = params.window === true;
+          const title = readStringParam(params, "title") || "";
           const marks = annotate
             ? [...lastRefs.entries()].slice(0, 150).map(([ref, entry]) => ({
                 ref,
@@ -497,27 +497,51 @@ export function createDesktopTool(opts?: {
                 h: entry.h,
               }))
             : undefined;
-          const payload = await runPowerShellJson<{ ok: boolean; path: string; marked?: number }>(
-            SCREENSHOT_SCRIPT,
-            { path: file, marks, grid },
-            30_000,
-          );
+          const payload = await runPowerShellJson<{
+            ok: boolean;
+            path: string;
+            marked?: number;
+            window?: boolean;
+            title?: string;
+            rect?: { x: number; y: number; w: number; h: number };
+            hint?: string;
+            error?: string;
+            minimized?: boolean;
+          }>(SCREENSHOT_SCRIPT, { path: file, marks, grid, window: windowOnly, title }, 30_000);
           if (!payload.ok) {
-            throw new Error("desktop: screenshot failed");
+            // Window capture can fail recoverably (not found / minimized) — surface
+            // the reason so the model can restore/focus and retry instead of giving up.
+            return jsonResult({
+              status: "error",
+              error: payload.error ?? "screenshot failed",
+              ...(payload.minimized ? { minimized: true } : {}),
+            });
           }
           const extraParts: string[] = [];
-          if (annotate) {
+          if (payload.window) {
+            const r = payload.rect;
             extraParts.push(
-              `Primary screen capture with ${payload.marked ?? 0} labeled boxes; labels match the refs from the latest snapshot (act kind=click ref=eN).`,
+              `Capture of window "${payload.title || title || "foreground"}"${
+                r ? ` (screen ${r.x},${r.y}, size ${r.w}x${r.h})` : ""
+              } — captured even though it need not be in the foreground. Image x,y are relative to the window's top-left; add the window's screen x,y to click on screen.`,
             );
-          }
-          if (grid) {
-            extraParts.push(
-              "A cyan coordinate grid is overlaid: lines every 100px, labels every 200px showing x,y. Read your target's position from the nearest labels and use act kind=click x=.. y=.. (screen coordinates).",
-            );
-          }
-          if (extraParts.length === 0) {
-            extraParts.push("Primary screen capture. Prefer snapshot (text) when possible.");
+            if (payload.hint) {
+              extraParts.push(payload.hint);
+            }
+          } else {
+            if (annotate) {
+              extraParts.push(
+                `Primary screen capture with ${payload.marked ?? 0} labeled boxes; labels match the refs from the latest snapshot (act kind=click ref=eN).`,
+              );
+            }
+            if (grid) {
+              extraParts.push(
+                "A cyan coordinate grid is overlaid: lines every 100px, labels every 200px showing x,y. Read your target's position from the nearest labels and use act kind=click x=.. y=.. (screen coordinates).",
+              );
+            }
+            if (extraParts.length === 0) {
+              extraParts.push("Primary screen capture. Prefer snapshot (text) when possible.");
+            }
           }
           return await imageResultFromFile({
             label: "desktop screenshot",

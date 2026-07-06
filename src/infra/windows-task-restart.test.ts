@@ -112,9 +112,27 @@ describe("relaunchGatewayScheduledTask", () => {
     const scriptPath = [...createdScriptPaths][0];
     expect(scriptPath).toBeTruthy();
     const script = fs.readFileSync(scriptPath, "utf8");
-    expect(script).toContain("timeout /t 1 /nobreak >nul");
+    // ping-based delay: `timeout /t` fails instantly without a console (the
+    // helper runs detached), which previously burned all retries in ms.
+    expect(script).toContain("ping -n 3 127.0.0.1 >nul 2>&1");
+    expect(script).not.toContain("timeout /t");
+    // Success is the gateway port listening, not the /Run exit code.
+    expect(script).toContain('netstat -an | findstr "LISTENING" | findstr /C:":18789 "');
     expect(script).toContain('schtasks /Run /TN "OpenClaw Gateway (work)" >nul 2>&1');
     expect(script).toContain('del "%~f0" >nul 2>&1');
+  });
+
+  it("uses OPENCLAW_GATEWAY_PORT for the listening check when set", () => {
+    spawnMock.mockImplementation((_file: string, args: string[]) => {
+      createdScriptPaths.add(decodeCmdPathArg(args[3]));
+      return { unref: vi.fn() };
+    });
+
+    relaunchGatewayScheduledTask({ OPENCLAW_PROFILE: "work", OPENCLAW_GATEWAY_PORT: "19001" });
+
+    const scriptPath = [...createdScriptPaths][0];
+    const script = fs.readFileSync(scriptPath, "utf8");
+    expect(script).toContain('findstr /C:":19001 "');
   });
 
   it("prefers OPENCLAW_WINDOWS_TASK_NAME overrides", () => {

@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { loadConfig } from "../../config/config.js";
 import { normalizeOptionalString } from "../../shared/string-coerce.js";
 import {
@@ -114,11 +115,42 @@ export const ttsHandlers: GatewayRequestHandlers = {
         disableFallback: Boolean(overrides.provider || modelId || voiceId),
       });
       if (result.success && result.audioPath) {
+        // returnAudio: inline the audio for clients with no filesystem access
+        // (the control UI), so the browser can play the server voice directly.
+        let audioBase64: string | undefined;
+        let audioMime: string | undefined;
+        if (params.returnAudio === true) {
+          // audioPath can come back drive-less on Windows ("\tmp\openclaw\...")
+          // while the file lives on another drive than our CWD — try candidates.
+          const candidates = [result.audioPath];
+          if (/^[\\/](?![\\/])/.test(result.audioPath)) {
+            candidates.push(`C:${result.audioPath}`, `D:${result.audioPath}`);
+          }
+          for (const candidate of candidates) {
+            try {
+              audioBase64 = readFileSync(candidate).toString("base64");
+              break;
+            } catch {
+              audioBase64 = undefined;
+            }
+          }
+          if (audioBase64) {
+            const p = result.audioPath.toLowerCase();
+            audioMime = p.endsWith(".wav")
+              ? "audio/wav"
+              : p.endsWith(".ogg") || p.endsWith(".opus")
+                ? "audio/ogg"
+                : p.endsWith(".webm")
+                  ? "audio/webm"
+                  : "audio/mpeg";
+          }
+        }
         respond(true, {
           audioPath: result.audioPath,
           provider: result.provider,
           outputFormat: result.outputFormat,
           voiceCompatible: result.voiceCompatible,
+          ...(audioBase64 ? { audioBase64, audioMime } : {}),
         });
         return;
       }

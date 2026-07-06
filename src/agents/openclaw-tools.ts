@@ -10,6 +10,7 @@ import type { SandboxFsBridge } from "./sandbox/fs-bridge.js";
 import type { SpawnedToolContext } from "./spawned-context.js";
 import type { ToolFsPolicy } from "./tool-fs-policy.js";
 import { createAgentBuilderTool } from "./tools/agent-builder-tool.js";
+import { createSkillRecorderTool } from "./tools/skill-recorder-tool.js";
 import { createAgentsListTool } from "./tools/agents-list-tool.js";
 import { createCanvasTool } from "./tools/canvas-tool.js";
 import type { AnyAgentTool } from "./tools/common.js";
@@ -244,6 +245,9 @@ export function createOpenClawTools(
       requesterAgentIdOverride: options?.requesterAgentIdOverride,
     }),
     createAgentBuilderTool({
+      agentSessionKey: options?.agentSessionKey,
+    }),
+    createSkillRecorderTool({
       agentSessionKey: options?.agentSessionKey,
     }),
     ...(isExperimentalPlanToolEnabled(resolvedConfig) || isOpenAIProvider(options?.modelProvider)

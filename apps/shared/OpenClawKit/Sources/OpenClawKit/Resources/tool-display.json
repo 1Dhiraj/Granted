@@ -1105,6 +1105,62 @@
         "text",
         "channel"
       ]
+    },
+    "agent_builder": {
+      "emoji": "🧑‍🔧",
+      "title": "Agent Builder",
+      "actions": {
+        "create": {
+          "label": "create",
+          "detailKeys": [
+            "name",
+            "purpose",
+            "model",
+            "tools"
+          ]
+        },
+        "list": {
+          "label": "list",
+          "detailKeys": []
+        },
+        "update": {
+          "label": "update",
+          "detailKeys": [
+            "agentId",
+            "name",
+            "model"
+          ]
+        },
+        "delete": {
+          "label": "delete",
+          "detailKeys": [
+            "agentId"
+          ]
+        }
+      }
+    },
+    "skill_recorder": {
+      "emoji": "🎙️",
+      "title": "Skill Recorder",
+      "actions": {
+        "save": {
+          "label": "save",
+          "detailKeys": [
+            "name",
+            "description"
+          ]
+        },
+        "list": {
+          "label": "list",
+          "detailKeys": []
+        },
+        "delete": {
+          "label": "delete",
+          "detailKeys": [
+            "name"
+          ]
+        }
+      }
     }
   }
 }

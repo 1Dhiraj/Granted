@@ -11,7 +11,15 @@
  */
 
 import { extractText } from "./message-extract.ts";
-import { isSttSupported, isTtsSupported, startStt, stopStt, stripMarkdown } from "./speech.ts";
+import {
+  isSttSupported,
+  isTtsSupported,
+  speakText,
+  startStt,
+  stopStt,
+  stopTts,
+  stripMarkdown,
+} from "./speech.ts";
 
 export type TalkPhase = "off" | "listening" | "thinking" | "speaking";
 
@@ -125,9 +133,8 @@ function resetStreamState() {
 
 function cancelSpeech() {
   utterancesPending = 0;
-  if (isTtsSupported()) {
-    speechSynthesis.cancel();
-  }
+  // Stops both the server-voice audio queue and browser speechSynthesis.
+  stopTts();
 }
 
 function beginListening(): boolean {
@@ -229,15 +236,21 @@ function speakChunk(rawChunk: string) {
     setPhase("speaking");
   }
   utterancesPending += 1;
-  const utterance = new SpeechSynthesisUtterance(cleaned);
-  utterance.rate = 1.0;
+  let settled = false;
   const settle = () => {
+    if (settled) {
+      return;
+    }
+    settled = true;
     utterancesPending = Math.max(0, utterancesPending - 1);
     maybeFinishSpeaking();
   };
-  utterance.addEventListener("end", settle);
-  utterance.addEventListener("error", settle);
-  speechSynthesis.speak(utterance);
+  // Use the default quality-first chain: Ava primary, Piper fallback if Ava
+  // fails. queue:true keeps streamed sentences playing back-to-back in order.
+  const ok = speakText(rawChunk, { queue: true, onEnd: settle, onError: settle });
+  if (!ok) {
+    settle();
+  }
 }
 
 function maybeFinishSpeaking() {

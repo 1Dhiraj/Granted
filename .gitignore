@@ -167,3 +167,8 @@ zzz*
 
 # build logs
 *.log
+
+# TTS test artifacts
+sample-*.wav
+tts-*.wav
+tts-*.mp3

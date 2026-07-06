@@ -49,27 +49,13 @@ export type ProvidersProps = {
   onTestOllama: (providerId: string) => void;
 };
 
-// ── Provider emoji/icon mapping ───────────────────────────────────────────
+// ── Provider monogram ─────────────────────────────────────────────────────
+// Minimal neutral monogram badge (provider initial) instead of emoji, so the
+// providers list stays clean and on-theme.
 
-const PROVIDER_EMOJI: Record<string, string> = {
-  anthropic: "🟠",
-  openai: "⚫",
-  google: "🔵",
-  mistral: "🟣",
-  groq: "⚡",
-  deepseek: "🌊",
-  together: "🤝",
-  openrouter: "🔀",
-  perplexity: "🔍",
-  nvidia: "🟢",
-  xai: "✖️",
-  fireworks: "🎆",
-  huggingface: "🤗",
-  ollama: "🦙",
-};
-
-function providerEmoji(id: string): string {
-  return PROVIDER_EMOJI[id] ?? "🤖";
+function providerMonogram(id: string): string {
+  const trimmed = (id ?? "").trim();
+  return trimmed ? trimmed[0].toUpperCase() : "?";
 }
 
 // ── Render ────────────────────────────────────────────────────────────────
@@ -92,7 +78,7 @@ function renderProviderCard(provider: ProviderItem, props: ProvidersProps) {
     <div class="provider-card ${provider.configured ? "provider-card--configured" : ""}">
       <div class="provider-card__header">
         <div class="provider-card__icon-wrap">
-          <span class="provider-card__emoji" aria-hidden="true">${providerEmoji(provider.id)}</span>
+          <span class="provider-card__emoji" aria-hidden="true">${providerMonogram(provider.id)}</span>
           <span
             class="provider-card__dot ${provider.configured ? "provider-card__dot--on" : "provider-card__dot--off"}"
             title="${provider.configured ? "API key configured" : "No API key set"}"

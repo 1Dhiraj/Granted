@@ -4,79 +4,43 @@ import { t } from "../../i18n/index.ts";
 import { SLASH_COMMANDS } from "../chat/slash-commands.ts";
 import { icons, type IconName } from "../icons.ts";
 import { normalizeLowercaseStringOrEmpty } from "../string-coerce.ts";
+import { FEATURE_INDEX, scoreFeature, type FeatureEntry } from "./feature-index.ts";
 
 type PaletteItem = {
   id: string;
   label: string;
   icon: IconName;
-  category: "search" | "navigation" | "skills";
+  category: "pages" | "features" | "commands";
   action: string;
   description?: string;
+  /** Extra match terms (synonyms) — searched but not displayed. */
+  keywords?: string[];
 };
+
+function featureToItem(entry: FeatureEntry): PaletteItem {
+  return {
+    id: entry.id,
+    label: entry.label,
+    icon: entry.icon,
+    category: entry.kind === "page" ? "pages" : "features",
+    action: `nav:${entry.tab}`,
+    description: entry.description,
+    keywords: entry.keywords,
+  };
+}
 
 const SLASH_PALETTE_ITEMS: PaletteItem[] = SLASH_COMMANDS.map((command) => ({
   id: `slash:${command.name}`,
   label: `/${command.name}`,
   icon: command.icon ?? "terminal",
-  category: "search",
+  category: "commands",
   action: `/${command.name}`,
   description: command.description,
 }));
 
 const PALETTE_ITEMS: PaletteItem[] = [
+  ...FEATURE_INDEX.map(featureToItem),
   ...SLASH_PALETTE_ITEMS,
-  {
-    id: "nav-overview",
-    label: "Overview",
-    icon: "barChart",
-    category: "navigation",
-    action: "nav:overview",
-  },
-  {
-    id: "nav-sessions",
-    label: "Sessions",
-    icon: "fileText",
-    category: "navigation",
-    action: "nav:sessions",
-  },
-  {
-    id: "nav-cron",
-    label: "Scheduled",
-    icon: "scrollText",
-    category: "navigation",
-    action: "nav:cron",
-  },
-  { id: "nav-skills", label: "Skills", icon: "zap", category: "navigation", action: "nav:skills" },
-  {
-    id: "nav-config",
-    label: "Settings",
-    icon: "settings",
-    category: "navigation",
-    action: "nav:config",
-  },
-  {
-    id: "nav-agents",
-    label: "Agents",
-    icon: "folder",
-    category: "navigation",
-    action: "nav:agents",
-  },
-  {
-    id: "skill-shell",
-    label: "Shell Command",
-    icon: "monitor",
-    category: "skills",
-    action: "/skill shell",
-    description: "Run shell",
-  },
-  {
-    id: "skill-debug",
-    label: "Debug Mode",
-    icon: "bug",
-    category: "skills",
-    action: "/verbose full",
-    description: "Toggle debug",
-  },
 ];
 
 export function getPaletteItems(): readonly PaletteItem[] {
@@ -94,16 +58,45 @@ export type CommandPaletteProps = {
   onSlashCommand: (command: string) => void;
 };
 
+const FEATURES_BY_ID = new Map(FEATURE_INDEX.map((entry) => [entry.id, entry]));
+
+function scoreItem(item: PaletteItem, tokens: string[]): number {
+  const feature = FEATURES_BY_ID.get(item.id);
+  if (feature) {
+    return scoreFeature(feature, tokens);
+  }
+  // Slash commands: match on name and description.
+  const label = normalizeLowercaseStringOrEmpty(item.label);
+  const description = normalizeLowercaseStringOrEmpty(item.description);
+  let total = 0;
+  for (const token of tokens) {
+    let best = 0;
+    if (label.startsWith(`/${token}`) || label.startsWith(token)) {
+      best = 90;
+    } else if (label.includes(token)) {
+      best = 50;
+    } else if (description.includes(token)) {
+      best = 20;
+    }
+    if (best === 0) {
+      return 0;
+    }
+    total += best;
+  }
+  return total;
+}
+
 function filteredItems(query: string): PaletteItem[] {
-  if (!query) {
+  const q = normalizeLowercaseStringOrEmpty(query).trim();
+  if (!q) {
     return PALETTE_ITEMS;
   }
-  const q = normalizeLowercaseStringOrEmpty(query);
-  return PALETTE_ITEMS.filter(
-    (item) =>
-      normalizeLowercaseStringOrEmpty(item.label).includes(q) ||
-      normalizeLowercaseStringOrEmpty(item.description).includes(q),
-  );
+  const tokens = q.split(/\s+/).filter(Boolean);
+  return PALETTE_ITEMS.map((item) => ({ item, score: scoreItem(item, tokens) }))
+    .filter((entry) => entry.score > 0)
+    .toSorted((a, b) => b.score - a.score)
+    .slice(0, 40)
+    .map((entry) => entry.item);
 }
 
 function groupItems(items: PaletteItem[]): Array<[string, PaletteItem[]]> {
@@ -177,9 +170,9 @@ function handleKeydown(e: KeyboardEvent, props: CommandPaletteProps) {
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
-  search: "Search",
-  navigation: "Navigation",
-  skills: "Skills",
+  pages: "Pages",
+  features: "Features & settings",
+  commands: "Chat commands",
 };
 
 function focusInput(el: Element | undefined) {
@@ -227,6 +220,7 @@ export function renderCommandPalette(props: CommandPaletteProps) {
                   >${icons.search}</span
                 >
                 <span>${t("overview.palette.noResults")}</span>
+                <span class="cmd-palette__empty-hint">${t("overview.palette.tryHint")}</span>
               </div>`
             : grouped.map(
                 ([category, groupedItems]) => html`
@@ -246,12 +240,17 @@ export function renderCommandPalette(props: CommandPaletteProps) {
                         @mouseenter=${() => props.onActiveIndexChange(globalIndex)}
                       >
                         <span class="nav-item__icon">${icons[item.icon]}</span>
-                        <span>${item.label}</span>
-                        ${item.description
-                          ? html`<span class="cmd-palette__item-desc muted"
-                              >${item.description}</span
-                            >`
-                          : nothing}
+                        <span class="cmd-palette__item-body">
+                          <span class="cmd-palette__item-label">${item.label}</span>
+                          ${item.description
+                            ? html`<span class="cmd-palette__item-desc">${item.description}</span>`
+                            : nothing}
+                        </span>
+                        ${item.action.startsWith("nav:")
+                          ? html`<span class="cmd-palette__item-go">↵</span>`
+                          : html`<span class="cmd-palette__item-go cmd-palette__item-go--cmd"
+                              >chat</span
+                            >`}
                       </div>
                     `;
                   })}

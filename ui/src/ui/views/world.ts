@@ -1,55 +1,23 @@
 import { html, nothing } from "lit";
 import type { GatewayAgentRow } from "../types.ts";
+import "../components/world-stage.ts";
+import { agentDisplayName, agentModelLabel, spriteArtFor } from "../components/world-stage.ts";
 
-// ── 2D office world ────────────────────────────────────────────────────
-// A top-down view of an office where each agent is a wandering avatar.
-// Click an agent to open a side panel: see what it's working on (live feed)
-// and give it a task. Sending routes the prompt to that agent's session and
-// the avatar lights up while it works.
+// ── 2D agent world ─────────────────────────────────────────────────────
+// A living top-down pixel world (rendered by <world-stage>) where each
+// agent roams as a character: idle agents wander, take breaks and chat;
+// the working agent sits at its desk and types. Click an agent to open a
+// side panel with its live feed and a prompt box.
 
-// CC0 pixel character sprite sheets (Ninja Adventure pack by Pixel-Boy, CC0 —
-// free for commercial use, no attribution required), bundled under /sprites.
-// Each sheet is a 4×7 grid of 16px frames; the top row is the front-facing
-// walk cycle (4 frames) which we animate. Per-agent we pick a base sheet and a
-// hue rotation so every agent is visually distinct but stable.
-const SPRITE_BASES = ["ninja_blue", "samurai_blue", "samurai_green"];
-const SPRITE_HUES = [0, 35, 70, 140, 200, 250, 300];
-
-function hashString(value: string): number {
-  let h = 0;
-  for (let i = 0; i < value.length; i++) {
-    h = (h * 31 + value.charCodeAt(i)) >>> 0;
-  }
-  return h;
-}
-
-function agentDisplayName(agent: GatewayAgentRow): string {
-  return (agent.name || agent.identity?.name || agent.id || "agent").trim();
-}
-
-/** Render an agent as an animated CC0 pixel sprite, distinct + stable per id. */
-function renderPixelChar(agent: GatewayAgentRow, basePath: string, large = false) {
-  const h = hashString(agent.id || agentDisplayName(agent));
-  const base = SPRITE_BASES[h % SPRITE_BASES.length];
-  const hue = SPRITE_HUES[(h >> 4) % SPRITE_HUES.length];
-  const root = (basePath || "").replace(/\/$/, "");
-  const url = `${root}/sprites/${base}.png`;
+/** Render an agent's face (animated sprite) for the side panel. */
+function renderPanelFace(agent: GatewayAgentRow, basePath: string) {
+  const art = spriteArtFor(agent.id || agentDisplayName(agent), basePath);
   return html`
     <span
-      class="sprite-char ${large ? "sprite-char--lg" : ""}"
-      style=${`background-image:url('${url}');--hue:${hue}deg`}
+      class="sprite-char sprite-char--lg"
+      style=${`background-image:url('${art.url}');--hue:${art.hue}deg`}
     ></span>
   `;
-}
-
-function agentModelLabel(agent: GatewayAgentRow): string {
-  const primary = agent.model?.primary?.trim();
-  if (!primary) {
-    return "default model";
-  }
-  // Shorten "together/moonshotai/Kimi-K2.6" → "Kimi-K2.6".
-  const parts = primary.split("/");
-  return parts[parts.length - 1] || primary;
 }
 
 export type WorldFeedEntry = {
@@ -73,49 +41,17 @@ export type WorldProps = {
   liveMessages: WorldFeedEntry[];
   /** Current value of the world prompt box. */
   promptValue: string;
+  /** Selected environment theme id (office | forest | void). */
+  theme: string;
+  onThemeChange: (theme: string) => void;
   onSelect: (agentId: string) => void;
   onClosePanel: () => void;
   onPromptInput: (value: string) => void;
   onSend: () => void;
   onOpenChat: () => void;
+  onOpenAgents: () => void;
   onReload: () => void;
 };
-
-function renderAvatar(agent: GatewayAgentRow, props: WorldProps, index: number) {
-  const working = props.activeAgentId === agent.id && props.busy;
-  const selected = props.selectedAgentId === agent.id;
-  const seed = hashString(agent.id || String(index));
-  // Stable per-agent animation timing so they wander out of sync.
-  const wanderDur = 14 + (seed % 9); // 14–22s
-  const wanderDelay = (seed >> 3) % 6; // 0–5s
-  const bobDur = 2.6 + ((seed >> 5) % 12) / 10; // 2.6–3.8s
-  const classes = [
-    "world-agent",
-    working ? "is-working" : "is-idle",
-    selected ? "is-selected" : "",
-  ]
-    .filter(Boolean)
-    .join(" ");
-  return html`
-    <button
-      class=${classes}
-      style=${`--wander-dur:${wanderDur}s;--wander-delay:${wanderDelay}s;--bob-dur:${bobDur}s`}
-      title=${`${agentDisplayName(agent)} — ${working ? "working" : "idle"}`}
-      @click=${() => props.onSelect(agent.id)}
-    >
-      <span class="world-desk"></span>
-      <span class="world-agent-puck">
-        <span class="world-agent-ring"></span>
-        ${renderPixelChar(agent, props.basePath)}
-        ${working ? html`<span class="world-agent-think">💭</span>` : nothing}
-      </span>
-      <span class="world-agent-label">
-        <span class="world-agent-name">${agentDisplayName(agent)}</span>
-        <span class="world-agent-status">${working ? "working…" : "idle"}</span>
-      </span>
-    </button>
-  `;
-}
 
 function renderFeed(props: WorldProps, name: string) {
   const showLive = props.selectedAgentId === props.activeAgentId;
@@ -159,7 +95,7 @@ function renderPanel(props: WorldProps) {
   return html`
     <aside class="world-panel">
       <header class="world-panel-head">
-        <span class="world-panel-face">${renderPixelChar(agent, props.basePath, true)}</span>
+        <span class="world-panel-face">${renderPanelFace(agent, props.basePath)}</span>
         <span class="world-panel-id">
           <span class="world-panel-name">${name}</span>
           <span class="world-panel-model">${agentModelLabel(agent)}</span>
@@ -202,29 +138,33 @@ export function renderWorld(props: WorldProps) {
   if (props.agents.length === 0) {
     return html`
       <div class="world-empty">
-        <p>No agents live here yet.</p>
+        <p class="world-empty-title">No agents live here yet.</p>
         <p class="world-empty-sub">
-          Create one in the <strong>Agents</strong> tab, or just ask in chat
-          (“create an agent that…”) and it’ll move in here.
+          Agents are your AI workers — each becomes a little character that lives in this world.
+          Create one and it moves in.
         </p>
-        <button class="world-open-chat" @click=${props.onReload}>Refresh</button>
+        <div class="world-empty-actions">
+          <button class="world-send" @click=${props.onOpenAgents}>Create an agent</button>
+          <button class="world-open-chat" @click=${props.onReload}>Refresh</button>
+        </div>
       </div>
     `;
   }
   const panelOpen = Boolean(props.selectedAgentId);
+  const workingAgentId = props.busy ? props.activeAgentId : null;
   return html`
     <div class="world ${panelOpen ? "has-panel" : ""}">
-      <div class="world-stage" @click=${(e: Event) => {
-        // Click on empty floor closes the panel.
-        if ((e.target as HTMLElement).classList.contains("world-stage")) {
-          props.onClosePanel();
-        }
-      }}>
-        <div class="world-floor"></div>
-        <div class="world-agents">
-          ${props.agents.map((agent, i) => renderAvatar(agent, props, i))}
-        </div>
-      </div>
+      <world-stage
+        .agents=${props.agents}
+        .theme=${props.theme}
+        .basePath=${props.basePath}
+        .workingAgentId=${workingAgentId}
+        .selectedAgentId=${props.selectedAgentId}
+        .liveSnippet=${props.liveText}
+        .onAgentSelect=${(agentId: string) => props.onSelect(agentId)}
+        .onThemeChange=${(theme: string) => props.onThemeChange(theme)}
+        .onStageClick=${() => props.onClosePanel()}
+      ></world-stage>
       ${panelOpen ? renderPanel(props) : nothing}
     </div>
   `;

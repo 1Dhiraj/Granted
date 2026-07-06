@@ -70,6 +70,7 @@ import type {
 } from "./controllers/skills.ts";
 import type { GatewayBrowserClient, GatewayHelloOk } from "./gateway.ts";
 import type { Tab } from "./navigation.ts";
+import { setServerTtsProvider } from "./chat/speech.ts";
 import { resolveAgentIdFromSessionKey } from "./session-key.ts";
 import { loadSettings, type UiSettings } from "./storage.ts";
 import { normalizeLowercaseStringOrEmpty, normalizeOptionalString } from "./string-coerce.ts";
@@ -280,6 +281,7 @@ export class OpenClawApp extends LitElement {
   @state() agentsSelectedId: string | null = null;
   @state() worldSelectedAgentId: string | null = null;
   @state() worldPrompt = "";
+  @state() worldTheme = localStorage.getItem("granted.worldTheme") ?? "office";
   @state() agentCreateOpen = false;
   @state() agentCreateName = "";
   @state() agentCreatePurpose = "";
@@ -429,6 +431,7 @@ export class OpenClawApp extends LitElement {
   @state() paletteOpen = false;
   @state() paletteQuery = "";
   @state() paletteActiveIndex = 0;
+  @state() pageHelpOpen = false;
   @state() overviewShowGatewayToken = false;
   @state() overviewShowGatewayPassword = false;
   @state() overviewLogLines: string[] = [];
@@ -547,6 +550,12 @@ export class OpenClawApp extends LitElement {
       }
     };
     document.addEventListener("keydown", this.globalKeydownHandler);
+    // Speech prefers the gateway's natural server voice whenever connected.
+    setServerTtsProvider(() =>
+      this.client && this.connected
+        ? (method, params) => this.client!.request(method, params)
+        : null,
+    );
     handleConnected(this as unknown as Parameters<typeof handleConnected>[0]);
   }
 

@@ -168,27 +168,65 @@ export const en: TranslationMap = {
     world: "World",
   },
   subtitles: {
-    agents: "Workspaces, tools, identities.",
-    overview: "Status, entry points, health.",
-    channels: "Channels and settings.",
-    instances: "Connected clients and nodes.",
-    sessions: "Active sessions and defaults.",
-    usage: "API usage and costs.",
-    cron: "Wakeups and recurring runs.",
-    skills: "Skills and API keys.",
-    nodes: "Paired devices and commands.",
-    chat: "Gateway chat for quick interventions.",
-    config: "Edit openclaw.json.",
-    providers: "API keys and model providers.",
-    communications: "Channels, messages, and audio settings.",
-    appearance: "Theme, UI, and setup wizard settings.",
-    automation: "Commands, hooks, cron, and plugins.",
-    infrastructure: "Gateway, web, browser, and media settings.",
-    aiAgents: "Agents, models, skills, tools, memory, session.",
-    debug: "Snapshots, events, RPC.",
-    logs: "Live gateway logs.",
-    dreams: "Memory dreaming, consolidation, and reflection.",
-    world: "Your agents at work — click one to prompt and watch it.",
+    agents: "Your AI workers — each with its own name, model, tools and files.",
+    overview: "Health check: is everything running, and how to connect.",
+    channels: "Link WhatsApp, Telegram, Discord and more, so you can text your AI.",
+    instances: "Apps and devices currently connected to your gateway.",
+    sessions: "Past and active conversations — continue, reset or clean them up.",
+    usage: "What your AI costs: tokens, requests and dollars over time.",
+    cron: "Things that run on a schedule — reminders, reports, recurring tasks.",
+    skills: "Add-on abilities for your agents, like installing apps on a phone.",
+    nodes: "Other devices (phone, laptop) your AI can reach: camera, screen, exec.",
+    chat: "Talk to your AI assistant directly.",
+    config: "The raw settings file — for advanced users.",
+    providers: "Connect AI model providers (Anthropic, OpenAI, Ollama…) with keys.",
+    communications: "How your AI messages and speaks: channels, broadcast, voice.",
+    appearance: "Make it yours: theme, language and interface options.",
+    automation: "Commands, hooks, schedules and approvals that run on their own.",
+    infrastructure: "Under the hood: gateway, web access, browser and media.",
+    aiAgents: "Brains and behavior: default models, tools, skills, memory.",
+    debug: "Inspect what is happening inside the gateway.",
+    logs: "A live feed of what the system is doing.",
+    dreams: "Your AI tidies its memory while idle — like sleeping.",
+    world: "A tiny 2D world where your agents live — click one to give it work.",
+  },
+  pageHelp: {
+    agents:
+      "Agents are separate AI workers. Each one can have its own personality, model, tools and files. Select an agent on the left, then use the panels to change what it knows (Files), what it may do (Tools) and which extras it has (Skills). Create more agents for specialised jobs — a researcher, a form-filler, a scheduler.",
+    overview:
+      "This is the health page. Green means the gateway (the engine behind everything) is running. From here you can copy connection details, check instances and update OpenClaw. If something feels broken, start here, then check Logs.",
+    channels:
+      "Channels connect your AI to messaging apps. Link WhatsApp by scanning a QR code, or add bot tokens for Telegram, Discord and others. Once linked, you can text your AI from your phone like any contact.",
+    instances: "Every app or device talking to your gateway shows up here with a heartbeat. Useful to confirm 'is my phone / browser / node actually connected right now?'",
+    sessions:
+      "Every conversation lives in a session that remembers its context. Long sessions cost more and can get confused — reset one to start fresh, or delete old ones. Click a session to jump into that conversation.",
+    usage:
+      "Shows what your AI actually costs: requests, tokens and dollars, split by day, model and session. If a bill surprises you, this page tells you which conversations caused it.",
+    cron: "Cron jobs are scheduled tasks: 'every morning at 8, summarise my inbox'. Create a job, pick a schedule and what the agent should do — it runs even when you are away. Run history appears below each job.",
+    skills:
+      "Skills teach your agents new tricks — searching, PDFs, smart-home control. Browse ClawHub to install more, toggle skills on or off, and add API keys where a skill needs one.",
+    nodes:
+      "Nodes are other devices your AI can use: a phone with a camera, a laptop that can run commands or show a screen. Pair a device and it becomes available as a tool in chat.",
+    chat: "This is a direct line to your AI. Type below, attach files or use / commands (try /help). The dropdown up top switches between agents and sessions.",
+    config:
+      "The full configuration file behind everything (openclaw.json), shown as a form. Most settings live in friendlier pages (Communications, Appearance, Automation…) — use this when you need a setting that is not exposed anywhere else. Save applies immediately.",
+    providers:
+      "Model providers are the AI brains. Paste an API key (Anthropic, OpenAI, OpenRouter…) or use free local models with Ollama. Keys are stored on your machine — the dashboard only sends them to your own gateway.",
+    communications:
+      "Everything about how your AI communicates: which channels are enabled, message handling, broadcast lists, and voice — text-to-speech, talk mode and audio handling.",
+    appearance: "Visual and personal preferences: light/dark theme, dashboard language, UI details and the first-run wizard.",
+    automation:
+      "Things that act on their own: custom commands, hooks that fire on events, scheduled jobs, plugins, and the approval rules for what agents may execute without asking you first.",
+    infrastructure:
+      "Plumbing settings: the gateway itself (port, auth), web access, the built-in browser agents use, media processing, and integrations like MCP.",
+    aiAgents:
+      "Global AI defaults that apply to all agents: which models to use (and fallbacks), tool availability, skill defaults, memory and session behavior. Individual agents can override these on the Agents page.",
+    debug: "Power tools for looking inside the gateway: state snapshots, live events and raw RPC calls. Handy when reporting a bug.",
+    logs: "The gateway's live diary. If something misbehaves, the reason usually shows up here first. Filter by level and watch entries stream in.",
+    dreams:
+      "While idle, your AI can 'dream': it reviews recent conversations, consolidates what matters into memory and reflects. Toggle it here and read the dream diary of what it learned.",
+    world:
+      "A living 2D world where each agent is a little character. Working agents sit at their desk; idle ones wander, take coffee breaks and chat. Click any agent to open its panel, give it a task and watch it think in real time. Use the buttons in the corner to change scenery.",
   },
   overview: {
     access: {
@@ -273,8 +311,9 @@ export const en: TranslationMap = {
       terminal: "Terminal",
     },
     palette: {
-      placeholder: "Type a command…",
+      placeholder: "Search pages, features, settings…",
       noResults: "No results",
+      tryHint: "Try “whatsapp”, “api key”, “schedule” or “costs”.",
     },
   },
   dreaming: {

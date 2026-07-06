@@ -1,65 +1,68 @@
 :root {
   /*
-   * "Granted" palette — electric cyan on near-black indigo
+   * Minimal neutral palette — true-gray surfaces, one calm blue accent.
+   * Designed for clarity: high-contrast text, restrained colour, the accent
+   * used only on interactive elements (buttons, links, active, focus).
    *
-   * WCAG 2.1 AA audit (bg = #0a0a0f, relative luminance ≈ 0.0044):
-   *   --accent #00d4ff  L ≈ 0.542  contrast ≈ 10.9:1  AAA text ✓
-   *   --accent-hover #33ddff  L ≈ 0.597  contrast ≈ 11.9:1  ✓
-   *   --primary-foreground #0a0a0f on #00d4ff button: 10.9:1 AAA ✓
+   * WCAG 2.1 AA audit (bg = #0d0d0d, relative luminance ≈ 0.006):
+   *   --text #e3e3e3 on bg: ≈ 15.6:1  AAA ✓
+   *   --muted #a0a0a0 on bg: ≈ 7.0:1  AAA ✓
+   *   --accent #5e9cd3 on bg: ≈ 7.4:1  AAA large / AA text ✓
+   *   --primary-foreground #0d0d0d on #5e9cd3 button: ≈ 7.4:1  ✓
    */
 
-  /* Background - Deep, rich dark with layered depth */
-  --bg: #0a0a0f;
-  --bg-accent: #0e0e15;
-  --bg-elevated: #14141d;
-  --bg-hover: #1a1a25;
-  --bg-muted: #1a1a25;
+  /* Background - Neutral near-black with layered depth */
+  --bg: #0d0d0d;
+  --bg-accent: #121212;
+  --bg-elevated: #181818;
+  --bg-hover: #1f1f1f;
+  --bg-muted: #1f1f1f;
 
   /* Card / Surface - Clear hierarchy between levels */
-  --card: #10101a;
-  --card-foreground: #e8eaf0;
+  --card: #141414;
+  --card-foreground: #ededed;
   --card-highlight: rgba(255, 255, 255, 0.04);
-  --popover: #14141d;
-  --popover-foreground: #e8eaf0;
+  --popover: #181818;
+  --popover-foreground: #ededed;
 
   /* Panel */
-  --panel: #0a0a0f;
-  --panel-strong: #14141d;
-  --panel-hover: #1a1a25;
-  --chrome: rgba(10, 10, 15, 0.96);
-  --chrome-strong: rgba(10, 10, 15, 0.98);
+  --panel: #0d0d0d;
+  --panel-strong: #181818;
+  --panel-hover: #1f1f1f;
+  --chrome: rgba(13, 13, 13, 0.96);
+  --chrome-strong: rgba(13, 13, 13, 0.98);
 
-  /* Text - Clean contrast, cool neutral */
-  --text: #d6d9e0;
-  --text-strong: #f2f4f8;
-  --chat-text: #d6d9e0;
-  --muted: #7c8089;
-  --muted-strong: #6e727c;
-  --muted-foreground: #7c8089;
+  /* Text - High contrast, neutral */
+  --text: #e3e3e3;
+  --text-strong: #ffffff;
+  --chat-text: #e3e3e3;
+  --muted: #a0a0a0;
+  --muted-strong: #8a8a8a;
+  --muted-foreground: #a0a0a0;
 
-  /* Border - Whisper-thin, barely there */
-  --border: #1b1b26;
-  --border-strong: #2a2a38;
-  --border-hover: #3a3a4c;
-  --input: #1b1b26;
-  --ring: #00d4ff;
+  /* Border - Whisper-thin, neutral */
+  --border: #242424;
+  --border-strong: #303030;
+  --border-hover: #3d3d3d;
+  --input: #242424;
+  --ring: #5e9cd3;
 
-  /* Accent - Electric cyan */
-  --accent: #00d4ff;
-  --accent-hover: #33ddff;
-  --accent-muted: #00d4ff;
-  --accent-subtle: rgba(0, 212, 255, 0.1);
-  --accent-foreground: #0a0a0f;
-  --accent-glow: rgba(0, 212, 255, 0.2);
-  --primary: #00d4ff;
-  --primary-foreground: #0a0a0f;
+  /* Accent - Calm professional blue (interactive elements only) */
+  --accent: #5e9cd3;
+  --accent-hover: #79afdf;
+  --accent-muted: #5e9cd3;
+  --accent-subtle: rgba(94, 156, 211, 0.12);
+  --accent-foreground: #0d0d0d;
+  --accent-glow: rgba(94, 156, 211, 0.18);
+  --primary: #5e9cd3;
+  --primary-foreground: #0d0d0d;
 
-  /* Secondary */
-  --secondary: #10101a;
-  --secondary-foreground: #e8eaf0;
-  --accent-2: #a78bfa;
-  --accent-2-muted: rgba(167, 139, 250, 0.7);
-  --accent-2-subtle: rgba(167, 139, 250, 0.1);
+  /* Secondary - Neutral grey (no second hue, keeps it minimal) */
+  --secondary: #141414;
+  --secondary-foreground: #ededed;
+  --accent-2: #8a8a8a;
+  --accent-2-muted: rgba(138, 138, 138, 0.7);
+  --accent-2-subtle: rgba(138, 138, 138, 0.12);
 
   /* Semantic */
   --ok: #22c55e;
@@ -76,7 +79,7 @@
   --info: #3b82f6;
 
   /* Focus */
-  --focus: rgba(0, 212, 255, 0.2);
+  --focus: rgba(94, 156, 211, 0.2);
   --focus-ring: 0 0 0 2px var(--bg), 0 0 0 3px color-mix(in srgb, var(--ring) 80%, transparent);
   --focus-glow: 0 0 0 2px var(--bg), 0 0 0 3px var(--ring), 0 0 16px var(--accent-glow);
 

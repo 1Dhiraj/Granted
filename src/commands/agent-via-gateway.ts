@@ -193,6 +193,18 @@ export async function agentCliCommand(opts: AgentCliOpts, runtime: RuntimeEnv, d
   try {
     return await agentViaGatewayCommand(opts, runtime);
   } catch (err) {
+    // A client-side timeout does NOT mean the gateway run failed — the run is
+    // usually still executing server-side. Re-running the same message embedded
+    // would double-execute side effects (duplicate commits, double messages), so
+    // fall back only when the gateway was actually unreachable.
+    if (/gateway timeout after/i.test(String(err))) {
+      runtime.error?.(
+        "Gateway did not reply within the client timeout; NOT re-running embedded — " +
+          "the run may still be executing on the gateway. Check the session for its " +
+          "result, or raise --timeout / agents.defaults.timeoutSeconds.",
+      );
+      throw err;
+    }
     runtime.error?.(`Gateway agent failed; falling back to embedded: ${String(err)}`);
     return await agentCommand(localOpts, runtime, deps);
   }

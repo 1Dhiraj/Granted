@@ -1299,6 +1299,26 @@ export function renderChat(props: ChatProps) {
 
         <div class="agent-chat__toolbar">
           <div class="agent-chat__toolbar-left">
+            ${props.agentsList && props.agentsList.agents.length > 1
+              ? html`
+                  <select
+                    class="agent-chat__agent-select"
+                    title="Switch agent — each agent keeps its own separate chat"
+                    aria-label="Active agent"
+                    .value=${props.currentAgentId}
+                    @change=${(e: Event) =>
+                      props.onAgentChange((e.target as HTMLSelectElement).value)}
+                  >
+                    ${props.agentsList.agents.map(
+                      (a) => html`
+                        <option value=${a.id} ?selected=${a.id === props.currentAgentId}>
+                          ${a.identity?.name || a.name || a.id}
+                        </option>
+                      `,
+                    )}
+                  </select>
+                `
+              : nothing}
             <button
               class="agent-chat__input-btn"
               @click=${() => {

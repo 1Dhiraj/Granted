@@ -242,7 +242,7 @@ function renderChatSpeedToggle(state: AppViewState) {
           }
           await switchChatModel(state, "");
         }}
-      >⚡ Fast</button>
+      >${icons.zap}Fast</button>
       <button
         title="Advanced — Kimi K2.6 (higher quality, costs more)"
         aria-pressed=${advanced}
@@ -254,7 +254,7 @@ function renderChatSpeedToggle(state: AppViewState) {
           }
           await switchChatModel(state, ADVANCED_CHAT_MODEL_REF);
         }}
-      >🧠 Advanced</button>
+      >${icons.brain}Advanced</button>
     </div>
   `;
 }

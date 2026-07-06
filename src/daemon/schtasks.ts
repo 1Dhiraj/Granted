@@ -5,6 +5,7 @@ import { isGatewayArgv } from "../infra/gateway-process-argv.js";
 import { findVerifiedGatewayListenerPidsOnPortSync } from "../infra/gateway-processes.js";
 import { inspectPortUsage } from "../infra/ports.js";
 import { getWindowsInstallRoots } from "../infra/windows-install-roots.js";
+import { runCommandWithTimeout } from "../process/exec.js";
 import { killProcessTree } from "../process/kill-tree.js";
 import { normalizeLowercaseStringOrEmpty } from "../shared/string-coerce.js";
 import { sleep } from "../utils.js";
@@ -33,6 +34,33 @@ function resolveTaskName(env: GatewayServiceEnv): string {
     return override;
   }
   return resolveGatewayWindowsTaskName(env.OPENCLAW_PROFILE);
+}
+
+/**
+ * schtasks /Create leaves Task Scheduler defaults in place: a 72-hour
+ * ExecutionTimeLimit (kills a long-running gateway after 3 days), no restart
+ * on failure, and battery start/stop restrictions. Re-apply hardened settings
+ * via PowerShell (the schtasks CLI cannot express them). Best-effort: an
+ * installed-but-unhardened task still works, it is just less resilient.
+ */
+async function hardenScheduledTaskSettings(
+  taskName: string,
+): Promise<{ ok: boolean; detail?: string }> {
+  const psTaskName = taskName.replace(/'/g, "''");
+  const psCommand =
+    "$s = New-ScheduledTaskSettingsSet -ExecutionTimeLimit ([TimeSpan]::Zero) " +
+    "-AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable " +
+    "-MultipleInstances IgnoreNew -RestartCount 10 -RestartInterval (New-TimeSpan -Minutes 1); " +
+    `Set-ScheduledTask -TaskName '${psTaskName}' -Settings $s | Out-Null`;
+  const result = await runCommandWithTimeout(
+    ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", psCommand],
+    { timeoutMs: 20_000, noOutputTimeoutMs: 20_000 },
+  );
+  if (result.code === 0) {
+    return { ok: true };
+  }
+  const detail = (result.stderr || result.stdout || "").trim().slice(0, 300);
+  return { ok: false, detail: detail || `powershell exited ${result.code}` };
 }
 
 function shouldFallbackToStartupEntry(params: { code: number; detail: string }): boolean {
@@ -602,12 +630,16 @@ async function updateExistingScheduledTask(params: {
   if (change.code !== 0) {
     return false;
   }
+  const hardened = await hardenScheduledTaskSettings(params.taskName);
   await runScheduledTaskOrThrow(params.taskName);
   writeFormattedLines(
     params.stdout,
     [
       { label: "Updated Scheduled Task", value: params.taskName },
       { label: "Task script", value: params.scriptPath },
+      ...(hardened.ok
+        ? []
+        : [{ label: "Task settings hardening failed", value: hardened.detail ?? "unknown" }]),
     ],
     { leadingBlankLine: true },
   );
@@ -679,6 +711,7 @@ async function activateScheduledTask(params: {
     throw new Error(`schtasks create failed: ${detail}`.trim());
   }
 
+  const hardened = await hardenScheduledTaskSettings(taskName);
   await runScheduledTaskOrThrow(taskName);
   // Ensure we don't end up writing to a clack spinner line (wizards show progress without a newline).
   writeFormattedLines(
@@ -686,6 +719,9 @@ async function activateScheduledTask(params: {
     [
       { label: "Installed Scheduled Task", value: taskName },
       { label: "Task script", value: params.scriptPath },
+      ...(hardened.ok
+        ? []
+        : [{ label: "Task settings hardening failed", value: hardened.detail ?? "unknown" }]),
     ],
     { leadingBlankLine: true },
   );

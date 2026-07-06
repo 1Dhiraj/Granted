@@ -682,11 +682,13 @@ export function listAgentsForGateway(cfg: OpenClawConfig): {
       .map((entry) => (entry?.id ? normalizeAgentId(entry.id) : ""))
       .filter(Boolean),
   );
-  const allowedIds = explicitIds.size > 0 ? new Set([...explicitIds, defaultId]) : null;
-  let agentIds = listConfiguredAgentIds(cfg).filter((id) =>
-    allowedIds ? allowedIds.has(id) : true,
-  );
-  if (mainKey && !agentIds.includes(mainKey) && (!allowedIds || allowedIds.has(mainKey))) {
+  // Only the default agent and agents the user explicitly created (config
+  // agents.list) are real agents. Workspace directories left on disk by
+  // deleted agents or runtime state must not resurface as ghost agents
+  // (an empty agents.list previously listed every dir under <state>/agents).
+  const allowedIds = new Set([...explicitIds, defaultId]);
+  let agentIds = listConfiguredAgentIds(cfg).filter((id) => allowedIds.has(id));
+  if (mainKey && !agentIds.includes(mainKey) && allowedIds.has(mainKey)) {
     agentIds = [...agentIds, mainKey];
   }
   const agents = agentIds.map((id) => {

@@ -9,8 +9,14 @@ import { formatErrorMessage } from "./errors.js";
 import type { RestartAttempt } from "./restart.js";
 import { resolvePreferredOpenClawTmpDir } from "./tmp-openclaw-dir.js";
 
-const TASK_RESTART_RETRY_LIMIT = 12;
-const TASK_RESTART_RETRY_DELAY_SEC = 1;
+const TASK_RESTART_RETRY_LIMIT = 30;
+// Delay via ping: `timeout /t` exits immediately with an error when stdin is
+// redirected (this helper runs detached with stdio ignored), which used to burn
+// every retry within milliseconds — while the old task instance was still
+// alive, so MultipleInstancesPolicy=IgnoreNew silently swallowed each /Run and
+// the gateway never came back. `ping -n 3` ≈ 2s and needs no console.
+const TASK_RESTART_DELAY_CMD = "ping -n 3 127.0.0.1 >nul 2>&1";
+const DEFAULT_GATEWAY_PORT = 18789;
 
 function resolveWindowsTaskName(env: NodeJS.ProcessEnv): string {
   const override = env.OPENCLAW_WINDOWS_TASK_NAME?.trim();
@@ -20,8 +26,24 @@ function resolveWindowsTaskName(env: NodeJS.ProcessEnv): string {
   return resolveGatewayWindowsTaskName(env.OPENCLAW_PROFILE);
 }
 
-function buildScheduledTaskRestartScript(taskName: string, taskScriptPath?: string): string {
+function resolveGatewayPort(env: NodeJS.ProcessEnv): number {
+  const raw = env.OPENCLAW_GATEWAY_PORT?.trim();
+  const parsed = raw ? Number.parseInt(raw, 10) : Number.NaN;
+  return Number.isInteger(parsed) && parsed > 0 && parsed <= 65535
+    ? parsed
+    : DEFAULT_GATEWAY_PORT;
+}
+
+function buildScheduledTaskRestartScript(
+  taskName: string,
+  gatewayPort: number,
+  taskScriptPath?: string,
+): string {
   const quotedTaskName = quoteCmdScriptArg(taskName);
+  // Success = the gateway is actually listening again. `schtasks /Run` exits 0
+  // even when IgnoreNew discards the request (old instance still finishing), so
+  // its exit code cannot be trusted; keep re-running until the port is bound.
+  const portListeningCheck = `netstat -an | findstr "LISTENING" | findstr /C:":${gatewayPort} " >nul 2>&1`;
   const lines = [
     "@echo off",
     "setlocal",
@@ -29,13 +51,16 @@ function buildScheduledTaskRestartScript(taskName: string, taskScriptPath?: stri
     "if errorlevel 1 goto fallback",
     "set /a attempts=0",
     ":retry",
-    `timeout /t ${TASK_RESTART_RETRY_DELAY_SEC} /nobreak >nul`,
+    TASK_RESTART_DELAY_CMD,
     "set /a attempts+=1",
-    `schtasks /Run /TN ${quotedTaskName} >nul 2>&1`,
+    portListeningCheck,
     "if not errorlevel 1 goto cleanup",
+    `schtasks /Run /TN ${quotedTaskName} >nul 2>&1`,
     `if %attempts% GEQ ${TASK_RESTART_RETRY_LIMIT} goto fallback`,
     "goto retry",
     ":fallback",
+    portListeningCheck,
+    "if not errorlevel 1 goto cleanup",
   ];
   if (taskScriptPath) {
     const quotedScript = quoteCmdScriptArg(taskScriptPath);
@@ -56,7 +81,7 @@ export function relaunchGatewayScheduledTask(env: NodeJS.ProcessEnv = process.en
   try {
     fs.writeFileSync(
       scriptPath,
-      `${buildScheduledTaskRestartScript(taskName, taskScriptPath)}\r\n`,
+      `${buildScheduledTaskRestartScript(taskName, resolveGatewayPort(env), taskScriptPath)}\r\n`,
       "utf8",
     );
     const child = spawn("cmd.exe", ["/d", "/s", "/c", quotedScriptPath], {

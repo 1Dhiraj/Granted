@@ -1,0 +1,11 @@
+{
+  "id": "kokoro",
+  "contracts": {
+    "speechProviders": ["kokoro"]
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

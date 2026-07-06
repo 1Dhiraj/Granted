@@ -155,4 +155,17 @@ describe("agentCliCommand", () => {
       });
     });
   });
+
+  it("does not fall back to embedded on gateway timeout (duplicate-run guard)", async () => {
+    await withTempStore(async () => {
+      // A client-side timeout usually means the gateway run is STILL executing;
+      // re-running embedded would double-execute side effects.
+      vi.mocked(callGateway).mockRejectedValue(new Error("gateway timeout after 330000ms"));
+
+      await expect(agentCliCommand({ message: "hi", to: "+1555" }, runtime)).rejects.toThrow(
+        "gateway timeout",
+      );
+      expect(agentCommand).not.toHaveBeenCalled();
+    });
+  });
 });

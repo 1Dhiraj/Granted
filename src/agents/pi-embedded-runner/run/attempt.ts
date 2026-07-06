@@ -1284,9 +1284,10 @@ export async function runEmbeddedAttempt(
           const summary = await loadCostUsageSummary({ config: params.config });
           const spent = summary.totals.totalCost ?? 0;
           if (spent >= spendLimitUsd) {
-            throw new Error(
-              `Spend limit reached: $${spent.toFixed(4)} spent of $${spendLimitUsd.toFixed(2)} limit. Further model calls are blocked. Restart the gateway to reset.`,
-            );
+            // Spend is cumulative across restarts — only a config change unblocks.
+            const reason = `Spend limit reached: $${spent.toFixed(4)} spent of $${spendLimitUsd.toFixed(2)} limit (agents.defaults.spendLimitUsd). ALL model calls are blocked — raise or remove the limit in openclaw.json to continue.`;
+            log.error(reason);
+            throw new Error(reason);
           }
           return inner(model, context, options);
         };

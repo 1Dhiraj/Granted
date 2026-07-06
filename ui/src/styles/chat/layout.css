@@ -1072,3 +1072,24 @@
 
 /* Mobile dropdown toggle — hidden on desktop */
 /* Mobile gear toggle + dropdown are hidden by default in layout.css */
+
+/* Per-agent switcher in the composer toolbar — each agent keeps its own chat. */
+.agent-chat__agent-select {
+  appearance: none;
+  -webkit-appearance: none;
+  background: var(--bg, #0d0f14);
+  color: inherit;
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.14));
+  border-radius: 8px;
+  font: inherit;
+  font-size: 12.5px;
+  padding: 5px 10px;
+  max-width: 170px;
+  cursor: pointer;
+}
+
+.agent-chat__agent-select:hover,
+.agent-chat__agent-select:focus {
+  outline: none;
+  border-color: var(--accent, #4c8dff);
+}

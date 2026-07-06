@@ -1,4 +1,4 @@
-/* ── 2D office world ─────────────────────────────────────────────────── */
+/* ── 2D agent world ──────────────────────────────────────────────────── */
 
 .world {
   display: flex;
@@ -8,161 +8,586 @@
   gap: 0;
 }
 
-.world-stage {
-  position: relative;
+world-stage {
+  display: block;
   flex: 1 1 auto;
   min-width: 0;
-  overflow: hidden;
-  border-radius: 14px;
-  background:
-    radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.04), transparent 60%),
-    var(--panel, #14161c);
+  min-height: 0;
 }
 
-/* Top-down carpet/tile floor. */
-.world-floor {
-  position: absolute;
-  inset: 0;
-  background-image:
-    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
-  background-size: 46px 46px;
-  pointer-events: none;
-}
-
-.world-agents {
+/* Viewport = pinned overlay host; the inner .ws-scroll pans a larger world. */
+.ws-viewport {
   position: relative;
-  z-index: 1;
-  display: flex;
-  flex-wrap: wrap;
-  align-content: flex-start;
-  gap: 18px 26px;
-  padding: 38px 30px;
+  width: 100%;
+  height: 100%;
+  border-radius: 14px;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.03), transparent 60%),
+    var(--bg, #0d0f14);
+}
+
+.ws-scroll {
+  width: 100%;
   height: 100%;
   overflow: auto;
-}
-
-/* ── Agent avatar (a desk + a wandering puck + a label) ──────────────── */
-
-.world-agent {
-  position: relative;
-  width: 150px;
-  height: 168px;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-end;
-  padding: 0;
-  color: inherit;
-  font: inherit;
-}
-
-/* The desk: a little rounded slab the avatar stands near. */
-.world-desk {
-  position: absolute;
-  left: 50%;
-  bottom: 30px;
-  transform: translateX(-50%);
-  width: 92px;
-  height: 40px;
-  border-radius: 10px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.10), rgba(255, 255, 255, 0.03));
-  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.28);
-}
-
-.world-agent-puck {
-  position: relative;
-  z-index: 2;
-  width: 56px;
-  height: 56px;
-  margin-bottom: 44px;
   display: grid;
-  place-items: center;
-  animation:
-    world-wander var(--wander-dur, 16s) ease-in-out var(--wander-delay, 0s) infinite,
-    world-bob var(--bob-dur, 3s) ease-in-out infinite;
+  /* safe centering: centers when the map fits, aligns to start (scrollable)
+     when the world has grown past the viewport. */
+  place-content: safe center;
+  scrollbar-width: thin;
 }
 
-.world-agent-face {
-  font-size: 34px;
-  line-height: 1;
-  filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.4));
-  user-select: none;
+/* The map: a growing floor plan sized in px by the component. */
+.ws-map {
+  position: relative;
+  box-sizing: border-box;
+  border-radius: 12px;
+  overflow: hidden;
+  image-rendering: pixelated;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+  background-color: #191d26;
 }
 
-.world-agent-ring {
+/* Soft vignette so sprites pop. */
+.ws-map::after {
+  content: "";
   position: absolute;
-  inset: -6px;
-  border-radius: 50%;
-  border: 2px solid transparent;
-  transition: border-color 0.25s ease;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1900;
+  background: radial-gradient(circle at 50% 40%, transparent 58%, rgba(0, 0, 0, 0.28));
 }
 
-.world-agent-think {
-  position: absolute;
-  top: -14px;
-  right: -10px;
-  font-size: 16px;
-  animation: world-bob 1.8s ease-in-out infinite;
-}
+/* ── Tiled floors (repeat cleanly at any size) ───────────────────────── */
 
-.world-agent-label {
+.ws-floor {
   position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1px;
+  inset: 0;
   pointer-events: none;
 }
 
-.world-agent-name {
-  font-size: 12.5px;
-  font-weight: 600;
-  max-width: 140px;
-  overflow: hidden;
-  text-overflow: ellipsis;
+/* Office: warm wood planks + a chunky wall frame. */
+.ws-map--office {
+  border: calc(var(--u) * 2.4) solid #b98a55;
+  box-shadow:
+    0 18px 50px rgba(0, 0, 0, 0.45),
+    inset 0 0 0 2px #8a6238;
+}
+
+.ws-map--office .ws-floor {
+  background-color: #c99a5f;
+  background-image:
+    repeating-linear-gradient(
+      0deg,
+      rgba(90, 55, 20, 0.16) 0,
+      rgba(90, 55, 20, 0.16) 1px,
+      transparent 1px,
+      transparent calc(var(--u) * 3.4)
+    ),
+    repeating-linear-gradient(
+      90deg,
+      rgba(90, 55, 20, 0.09) 0,
+      rgba(90, 55, 20, 0.09) 1px,
+      transparent 1px,
+      transparent calc(var(--u) * 13)
+    ),
+    linear-gradient(0deg, rgba(0, 0, 0, 0.06), rgba(255, 255, 255, 0.04));
+}
+
+/* Forest: grass with dappled texture + a soft shaded edge. */
+.ws-map--forest {
+  box-shadow:
+    0 18px 50px rgba(0, 0, 0, 0.45),
+    inset 0 0 calc(var(--u) * 8) rgba(20, 45, 20, 0.55);
+}
+
+.ws-map--forest .ws-floor {
+  background-color: #5c9a4f;
+  background-image:
+    radial-gradient(rgba(40, 90, 40, 0.55) 1px, transparent 1.6px),
+    radial-gradient(rgba(120, 180, 100, 0.4) 1px, transparent 1.6px),
+    linear-gradient(0deg, rgba(20, 50, 20, 0.12), rgba(150, 200, 120, 0.06));
+  background-size:
+    calc(var(--u) * 3.2) calc(var(--u) * 3.2),
+    calc(var(--u) * 5) calc(var(--u) * 5),
+    100% 100%;
+  background-position:
+    0 0,
+    calc(var(--u) * 1.6) calc(var(--u) * 1.4),
+    0 0;
+}
+
+/* Minimal: a clean grid. */
+.ws-map--void .ws-floor {
+  background-color: #12151c;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: calc(var(--u) * 6) calc(var(--u) * 6);
+}
+
+.ws-map--void {
+  box-shadow:
+    0 18px 50px rgba(0, 0, 0, 0.45),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+/* ── Zones ───────────────────────────────────────────────────────────── */
+
+.ws-zone {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  z-index: 40;
+  font-size: max(8px, calc(var(--u) * 1.05));
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.55);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+  pointer-events: none;
   white-space: nowrap;
 }
 
-.world-agent-status {
-  font-size: 10.5px;
-  color: var(--muted, #8a8f98);
-  text-transform: lowercase;
+.ws-map--office .ws-zone {
+  color: rgba(60, 35, 12, 0.55);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.25);
 }
 
-/* Working state: glowing ring + accent status. */
-.world-agent.is-working .world-agent-ring {
+/* ── Props ───────────────────────────────────────────────────────────── */
+
+.ws-prop {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.ws-prop svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* Each workstation's monitor carries its owner's sprite hue, so desks read
+   as belonging to a specific agent. */
+.ws-prop--desk .ws-screen,
+.ws-prop--stump .ws-screen {
+  fill: #4c6d9c;
+  filter: hue-rotate(var(--hue, 0deg));
+  transition: fill 0.4s ease;
+}
+
+/* Working agent's desk: the screen lights up green (overrides the tint). */
+.ws-prop.is-active .ws-screen {
+  fill: #7ee2a8;
+  filter: none;
+}
+
+.ws-prop.is-active::after {
+  content: "";
+  position: absolute;
+  inset: -30% -20%;
+  background: radial-gradient(circle at 50% 30%, rgba(126, 226, 168, 0.22), transparent 62%);
+  animation: ws-glow-pulse 2.2s ease-in-out infinite;
+}
+
+/* Server LEDs blink out of sync. */
+.ws-led {
+  animation: ws-led-blink 2.4s steps(2, jump-none) infinite;
+}
+
+.ws-led--2 {
+  animation-duration: 1.7s;
+}
+
+.ws-led--3 {
+  animation-duration: 3.1s;
+}
+
+.ws-led--4 {
+  animation-duration: 1.3s;
+}
+
+/* Coffee steam. */
+.ws-steam {
+  animation: ws-steam-rise 2.4s ease-out infinite;
+  transform-box: fill-box;
+}
+
+.ws-steam--b {
+  animation-delay: 1.1s;
+}
+
+/* Campfire flames flicker + warm glow. */
+.ws-flame-outer,
+.ws-flame-inner {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: ws-flame 0.7s ease-in-out infinite alternate;
+}
+
+.ws-flame-inner {
+  animation-duration: 0.45s;
+}
+
+.ws-flame-tip {
+  transform-box: fill-box;
+  animation: ws-flame-tip 0.6s ease-in-out infinite alternate;
+}
+
+.ws-prop--campfire::after {
+  content: "";
+  position: absolute;
+  inset: -80% -70%;
+  background: radial-gradient(circle, rgba(255, 150, 50, 0.26), transparent 60%);
+  animation: ws-glow-pulse 1.6s ease-in-out infinite;
+}
+
+/* ── Agents ──────────────────────────────────────────────────────────── */
+
+.ws-agent {
+  position: absolute;
+  /* (left, top) is the agent's feet. */
+  transform: translate(-50%, -92%);
+  width: var(--sprite);
+  height: var(--sprite);
+  --sprite: max(30px, calc(var(--u) * 5.2));
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+  transition:
+    left var(--movedur, 0s) linear,
+    top var(--movedur, 0s) linear;
+}
+
+.ws-agent.no-anim {
+  transition: none;
+}
+
+.ws-shadow {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--sprite) * -0.04);
+  transform: translateX(-50%);
+  width: calc(var(--sprite) * 0.62);
+  height: calc(var(--sprite) * 0.18);
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.3);
+  filter: blur(1px);
+}
+
+.ws-sprite {
+  position: relative;
+  display: block;
+  width: var(--sprite);
+  height: var(--sprite);
+  background-repeat: no-repeat;
+  /* 4 direction columns × 7 frame rows of 16px, scaled to sprite size. */
+  background-size: calc(var(--sprite) * 4) calc(var(--sprite) * 7);
+  background-position-x: calc(var(--dirx, 0) * var(--sprite) * -1);
+  background-position-y: 0;
+  image-rendering: pixelated;
+  filter: hue-rotate(var(--hue, 0deg)) drop-shadow(0 2px 2px rgba(0, 0, 0, 0.35));
+}
+
+/* Walk cycle: step through the 4 frame rows of the facing column. */
+.ws-agent.is-walking .ws-sprite {
+  animation: ws-walk 0.55s steps(4) infinite;
+}
+
+.ws-ring {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: calc(var(--sprite) * 1.3);
+  height: calc(var(--sprite) * 1.3);
+  border-radius: 50%;
+  border: 2px solid transparent;
+  transition: border-color 0.25s ease;
+  pointer-events: none;
+}
+
+.ws-agent.is-selected .ws-ring {
+  border-color: var(--accent, #4c8dff);
+  box-shadow: 0 0 0 3px rgba(76, 141, 255, 0.22);
+}
+
+.ws-agent.is-working .ws-ring {
   border-color: var(--ok, #3fb950);
   animation: world-pulse 1.6s ease-out infinite;
 }
 
-.world-agent.is-working .world-agent-status {
+.ws-agent:hover .ws-sprite {
+  transform: scale(1.08);
+}
+
+/* Name tag under the feet. */
+.ws-nametag {
+  position: absolute;
+  top: 102%;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: max-content;
+  max-width: calc(var(--sprite) * 3.4);
+  padding: 1px 6px;
+  border-radius: 7px;
+  background: rgba(0, 0, 0, 0.42);
+  backdrop-filter: blur(2px);
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.ws-nametag-name {
+  font-size: max(9px, calc(var(--u) * 1.2));
+  font-weight: 600;
+  color: #fff;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+.ws-nametag-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ok, #3fb950);
+  box-shadow: 0 0 5px var(--ok, #3fb950);
+  animation: world-pulse 1.4s ease-out infinite;
+}
+
+/* Speech bubble above the head. */
+.ws-bubble {
+  position: absolute;
+  bottom: 108%;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  /* width:max-content so the bubble sizes to its text, not the tiny button
+     containing-block; max-width then caps it and lets long text wrap. */
+  width: max-content;
+  max-width: min(calc(var(--u) * 24), 210px);
+  padding: 4px 8px;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.94);
+  color: #1c1f26;
+  font-size: max(9px, calc(var(--u) * 1.25));
+  line-height: 1.3;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
+  pointer-events: none;
+  animation: ws-bubble-in 0.22s ease-out;
+  z-index: 5;
+}
+
+.ws-bubble::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 4px solid transparent;
+  border-top-color: rgba(255, 255, 255, 0.94);
+}
+
+.ws-bubble-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  word-break: break-word;
+}
+
+.ws-bubble--working {
+  background: rgba(224, 244, 232, 0.96);
+}
+
+.ws-bubble--working::after {
+  border-top-color: rgba(224, 244, 232, 0.96);
+}
+
+.ws-bubble-dots {
+  display: inline-flex;
+  gap: 2px;
+  flex: 0 0 auto;
+}
+
+.ws-bubble-dots i {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--ok, #3fb950);
+  animation: ws-dot 1.2s ease-in-out infinite;
+}
+
+.ws-bubble-dots i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.ws-bubble-dots i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+/* ── Day / night tint ────────────────────────────────────────────────── */
+
+.ws-tint {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1800;
+  transition: background 1s ease;
+}
+
+.ws-phase--night .ws-tint {
+  background: rgba(14, 18, 48, 0.42);
+}
+
+.ws-phase--dusk .ws-tint {
+  background: linear-gradient(rgba(255, 122, 60, 0.1), rgba(30, 25, 60, 0.26));
+}
+
+.ws-phase--dawn .ws-tint {
+  background: rgba(255, 190, 120, 0.12);
+}
+
+/* Indoors the lights are on: soften the night. */
+.ws-map--office.ws-phase--night .ws-tint {
+  background: rgba(14, 18, 48, 0.26);
+}
+
+.ws-map--void .ws-tint {
+  background: none;
+}
+
+/* ── Ambient particles ───────────────────────────────────────────────── */
+
+.ws-particle {
+  position: absolute;
+  pointer-events: none;
+  z-index: 1850;
+}
+
+.ws-particle--firefly {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: #ffe98a;
+  box-shadow: 0 0 6px 1px rgba(255, 233, 138, 0.8);
+  animation-name: ws-firefly;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+
+.ws-particle--leaf {
+  width: 4px;
+  height: 4px;
+  border-radius: 1px;
+  background: #7fbf6a;
+  opacity: 0.8;
+  animation-name: ws-leaf;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+.ws-particle--dust {
+  width: 2px;
+  height: 2px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.35);
+  animation-name: ws-dust;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+
+.ws-particle--ember {
+  width: 2px;
+  height: 2px;
+  border-radius: 50%;
+  background: #ffb347;
+  box-shadow: 0 0 4px rgba(255, 140, 26, 0.9);
+  animation-name: ws-ember;
+  animation-timing-function: ease-out;
+  animation-iteration-count: infinite;
+}
+
+.ws-particle--spark {
+  width: 2px;
+  height: 2px;
+  background: var(--accent, #4c8dff);
+  opacity: 0.5;
+  animation-name: ws-dust;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+
+/* ── HUD + theme picker ──────────────────────────────────────────────── */
+
+.ws-hud {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 2200;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 10px;
+  border-radius: 9px;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(4px);
+  color: #fff;
+  font-size: 11.5px;
+  pointer-events: none;
+}
+
+.ws-hud-sep {
+  opacity: 0.4;
+}
+
+.ws-hud-working {
   color: var(--ok, #3fb950);
+  font-weight: 600;
 }
 
-.world-agent.is-working .world-agent-puck {
-  /* Working agents stay closer to their desk (less wandering). */
-  animation-duration: calc(var(--wander-dur, 16s) * 1.6), var(--bob-dur, 3s);
+.ws-themes {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 2200;
+  display: flex;
+  gap: 4px;
+  background: rgba(0, 0, 0, 0.45);
+  padding: 4px;
+  border-radius: 10px;
+  backdrop-filter: blur(4px);
 }
 
-/* Selected state. */
-.world-agent.is-selected .world-agent-ring {
-  border-color: var(--accent, #4c8dff);
-  box-shadow: 0 0 0 3px rgba(76, 141, 255, 0.25);
+.ws-theme-btn {
+  border: none;
+  background: transparent;
+  color: #fff;
+  font: inherit;
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 7px;
+  cursor: pointer;
+  opacity: 0.72;
 }
 
-.world-agent.is-selected .world-agent-name {
-  color: var(--accent, #4c8dff);
+.ws-theme-btn:hover {
+  opacity: 1;
 }
 
-.world-agent:hover .world-agent-puck {
-  transform: scale(1.06);
+.ws-theme-btn.is-active {
+  background: var(--accent, #4c8dff);
+  color: #fff;
+  opacity: 1;
 }
 
 /* ── Side panel ──────────────────────────────────────────────────────── */
@@ -271,7 +696,7 @@
 }
 
 .world-feed-row.stream {
-  background: rgba(76, 141, 255, 0.10);
+  background: rgba(76, 141, 255, 0.1);
 }
 
 .world-feed-role {
@@ -366,16 +791,32 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 10px;
   height: 100%;
   text-align: center;
   color: var(--muted, #8a8f98);
 }
 
+.world-empty-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--fg, #e8eaee);
+}
+
 .world-empty-sub {
-  max-width: 360px;
+  max-width: 400px;
   font-size: 12.5px;
-  line-height: 1.5;
+  line-height: 1.55;
+}
+
+.world-empty-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.world-empty-actions .world-send {
+  flex: 0 0 auto;
 }
 
 .world-dot {
@@ -387,19 +828,18 @@
   animation: world-pulse 1.4s ease-out infinite;
 }
 
-/* ── Pixel character (CC0 sprite sheet, animated walk) ───────────────── */
+/* ── Pixel character for the side panel (front-facing walk) ──────────── */
 
 .sprite-char {
   width: 48px;
   height: 48px;
   background-repeat: no-repeat;
-  /* 4×7 grid of 16px frames, scaled 3× → 192×336; top row = front-facing. */
+  /* 4 direction columns × 7 frame rows of 16px at 3× → 192×336. */
   background-size: 192px 336px;
   background-position: 0 0;
   image-rendering: pixelated;
   filter: hue-rotate(var(--hue, 0deg));
-  /* Walk cycle: step through the 4 columns of the front-facing row. */
-  animation: sprite-walk 0.7s steps(4) infinite;
+  animation: sprite-walk-down 0.8s steps(4) infinite;
 }
 
 .sprite-char--lg {
@@ -407,45 +847,209 @@
   transform-origin: center;
 }
 
-/* Working agents stand at their desk (freeze on the idle frame). */
-.world-agent.is-working .sprite-char {
-  animation-play-state: paused;
-  background-position: 0 0;
-}
-
 /* ── Keyframes ───────────────────────────────────────────────────────── */
 
-@keyframes sprite-walk {
-  from { background-position: 0 0; }
-  to { background-position: -192px 0; }
+@keyframes ws-walk {
+  from {
+    background-position-y: 0;
+  }
+
+  to {
+    background-position-y: calc(var(--sprite) * -4);
+  }
 }
 
-@keyframes world-bob {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-5px); }
+@keyframes sprite-walk-down {
+  from {
+    background-position-y: 0;
+  }
+
+  to {
+    background-position-y: -192px;
+  }
 }
 
-@keyframes world-wander {
-  0% { transform: translate(0, 0); }
-  20% { transform: translate(16px, -8px); }
-  40% { transform: translate(28px, 6px); }
-  60% { transform: translate(6px, 12px); }
-  80% { transform: translate(-18px, 2px); }
-  100% { transform: translate(0, 0); }
+@keyframes ws-bubble-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+@keyframes ws-dot {
+  0%,
+  100% {
+    opacity: 0.25;
+    transform: translateY(0);
+  }
+
+  50% {
+    opacity: 1;
+    transform: translateY(-2px);
+  }
+}
+
+@keyframes ws-led-blink {
+  50% {
+    opacity: 0.12;
+  }
+}
+
+@keyframes ws-steam-rise {
+  0% {
+    opacity: 0;
+    transform: translateY(0);
+  }
+
+  25% {
+    opacity: 0.9;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+}
+
+@keyframes ws-flame {
+  from {
+    transform: scaleY(1);
+  }
+
+  to {
+    transform: scaleY(0.8);
+  }
+}
+
+@keyframes ws-flame-tip {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  to {
+    opacity: 0.45;
+    transform: translateY(1px);
+  }
+}
+
+@keyframes ws-glow-pulse {
+  0%,
+  100% {
+    opacity: 0.75;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes ws-firefly {
+  0%,
+  100% {
+    opacity: 0.1;
+    transform: translate(0, 0);
+  }
+
+  35% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.25;
+    transform: translate(10px, -8px);
+  }
+
+  80% {
+    opacity: 0.9;
+    transform: translate(-6px, 6px);
+  }
+}
+
+@keyframes ws-leaf {
+  0% {
+    opacity: 0;
+    transform: translate(0, -10px) rotate(0deg);
+  }
+
+  15% {
+    opacity: 0.85;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(14px, 46px) rotate(200deg);
+  }
+}
+
+@keyframes ws-dust {
+  0%,
+  100% {
+    opacity: 0.1;
+    transform: translateY(0);
+  }
+
+  50% {
+    opacity: 0.4;
+    transform: translateY(-9px);
+  }
+}
+
+@keyframes ws-ember {
+  0% {
+    opacity: 0.9;
+    transform: translate(0, 0);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(3px, -18px);
+  }
 }
 
 @keyframes world-pulse {
-  0% { box-shadow: 0 0 0 0 rgba(63, 185, 80, 0.45); }
-  70% { box-shadow: 0 0 0 12px rgba(63, 185, 80, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(63, 185, 80, 0); }
+  0% {
+    box-shadow: 0 0 0 0 rgba(63, 185, 80, 0.45);
+  }
+
+  70% {
+    box-shadow: 0 0 0 12px rgba(63, 185, 80, 0);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgba(63, 185, 80, 0);
+  }
 }
 
 @keyframes world-panel-in {
-  from { opacity: 0; transform: translateX(12px); }
-  to { opacity: 1; transform: translateX(0); }
+  from {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 @media (max-width: 760px) {
-  .world.has-panel .world-stage { display: none; }
-  .world-panel { flex-basis: 100%; width: 100%; margin-left: 0; }
+  .world.has-panel world-stage {
+    display: none;
+  }
+
+  .world-panel {
+    flex-basis: 100%;
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .ws-zone {
+    display: none;
+  }
 }

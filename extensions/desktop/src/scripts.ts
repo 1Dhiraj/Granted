@@ -28,6 +28,9 @@ public static class DeskNative {
   [DllImport("user32.dll")] public static extern bool IsIconic(IntPtr hWnd);
   [DllImport("user32.dll")] public static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int X, int Y, int cx, int cy, uint uFlags);
   [DllImport("user32.dll")] public static extern bool PostMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
+  // Asks a window to render itself into a device context — works even when the
+  // window is behind others (the OS-level equivalent of CDP captureScreenshot).
+  [DllImport("user32.dll")] public static extern bool PrintWindow(IntPtr hWnd, IntPtr hdcBlt, uint nFlags);
 
   [StructLayout(LayoutKind.Sequential)]
   public struct RECT { public int Left; public int Top; public int Right; public int Bottom; }
@@ -729,6 +732,50 @@ export const SCREENSHOT_SCRIPT =
   `
 Add-Type -AssemblyName System.Drawing
 Add-Type -AssemblyName System.Windows.Forms
+if ($A.window) {
+  # Capture ONE window's own pixels via PrintWindow — works even when the window
+  # is behind others / not in the foreground. (Foreground-free, like the browser.)
+  $hwnd = Find-WindowHandle ([string]$A.title)
+  if ($hwnd -eq [IntPtr]::Zero) {
+    @{ ok = $false; error = ('window not found: ' + [string]$A.title) } | ConvertTo-Json -Compress
+    exit 0
+  }
+  if ([DeskNative]::IsIconic($hwnd)) {
+    @{ ok = $false; error = 'window is minimized — restore it first (action=window windowOp=restore), or read it with snapshot (UIA works while minimized)'; minimized = $true } | ConvertTo-Json -Compress
+    exit 0
+  }
+  $rect = New-Object 'DeskNative+RECT'
+  [void][DeskNative]::GetWindowRect($hwnd, [ref]$rect)
+  $ww = $rect.Right - $rect.Left
+  $wh = $rect.Bottom - $rect.Top
+  if ($ww -le 0 -or $wh -le 0) {
+    @{ ok = $false; error = 'window has no drawable area' } | ConvertTo-Json -Compress
+    exit 0
+  }
+  $wbmp = New-Object System.Drawing.Bitmap($ww, $wh)
+  $wg = [System.Drawing.Graphics]::FromImage($wbmp)
+  $whdc = $wg.GetHdc()
+  $printed = [DeskNative]::PrintWindow($hwnd, $whdc, 2)
+  $wg.ReleaseHdc($whdc)
+  # Detect a blank/black capture (some GPU/DirectX apps can't be PrintWindow'd).
+  $blank = $true
+  foreach ($pt in @(@(2, 2), @([int]($ww / 2), [int]($wh / 2)), @($ww - 3, $wh - 3), @([int]($ww / 2), 2))) {
+    $cx = [Math]::Min([Math]::Max([int]$pt[0], 0), $ww - 1)
+    $cy = [Math]::Min([Math]::Max([int]$pt[1], 0), $wh - 1)
+    $px = $wbmp.GetPixel($cx, $cy)
+    if ($px.R -gt 8 -or $px.G -gt 8 -or $px.B -gt 8) { $blank = $false; break }
+  }
+  $wbmp.Save([string]$A.path, [System.Drawing.Imaging.ImageFormat]::Png)
+  $wg.Dispose(); $wbmp.Dispose()
+  $wsb = New-Object System.Text.StringBuilder 512
+  [void][DeskNative]::GetWindowText($hwnd, $wsb, 512)
+  $wres = @{ ok = $true; path = [string]$A.path; width = $ww; height = $wh; window = $true; title = $wsb.ToString(); rect = @{ x = $rect.Left; y = $rect.Top; w = $ww; h = $wh } }
+  if (-not $printed -or $blank) {
+    $wres.hint = 'capture looks blank — this window is likely GPU/hardware-rendered, which PrintWindow cannot read. Bring it to the foreground (action=focus) then use a full-screen screenshot, or use snapshot (UIA reads it in the background).'
+  }
+  $wres | ConvertTo-Json -Compress -Depth 4
+  exit 0
+}
 $b = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
 $bmp = New-Object System.Drawing.Bitmap($b.Width, $b.Height)
 $g = [System.Drawing.Graphics]::FromImage($bmp)

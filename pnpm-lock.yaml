@@ -601,6 +601,12 @@ importers:
         specifier: workspace:*
         version: link:../../packages/plugin-sdk
 
+  extensions/kokoro:
+    devDependencies:
+      '@openclaw/plugin-sdk':
+        specifier: workspace:*
+        version: link:../../packages/plugin-sdk
+
   extensions/line:
     devDependencies:
       '@openclaw/plugin-sdk':
@@ -858,6 +864,12 @@ importers:
         version: link:../../packages/plugin-sdk
 
   extensions/perplexity:
+    devDependencies:
+      '@openclaw/plugin-sdk':
+        specifier: workspace:*
+        version: link:../../packages/plugin-sdk
+
+  extensions/piper:
     devDependencies:
       '@openclaw/plugin-sdk':
         specifier: workspace:*

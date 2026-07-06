@@ -514,6 +514,23 @@ describe("gateway session utils", () => {
     });
   });
 
+  test("listAgentsForGateway with empty agents.list returns only the default agent (no disk ghosts)", async () => {
+    await withStateDirEnv("openclaw-agent-list-empty-", async ({ stateDir }) => {
+      // Leftover workspace dirs from deleted/experimental agents must not
+      // resurface as agents when the user has not created any.
+      fs.mkdirSync(path.join(stateDir, "agents", "main"), { recursive: true });
+      fs.mkdirSync(path.join(stateDir, "agents", "verify-bot"), { recursive: true });
+      fs.mkdirSync(path.join(stateDir, "agents", "web-researcher"), { recursive: true });
+
+      const cfg = {
+        session: { mainKey: "main" },
+      } as OpenClawConfig;
+
+      const { agents, defaultId } = listAgentsForGateway(cfg);
+      expect(agents.map((agent) => agent.id)).toEqual([defaultId]);
+    });
+  });
+
   test("listAgentsForGateway includes effective workspace + model for default agent", () => {
     const cfg = {
       session: { mainKey: "main" },

@@ -13,7 +13,13 @@ import type {
 } from "openclaw/plugin-sdk/speech";
 import { asBoolean, asFiniteNumber, asObject, trimToUndefined } from "openclaw/plugin-sdk/speech";
 import { resolvePreferredOpenClawTmpDir } from "openclaw/plugin-sdk/temp-path";
-import { edgeTTS, inferEdgeExtension } from "./tts.js";
+import {
+  buildExpressiveSsml,
+  edgeTTS,
+  edgeTTSSSML,
+  humanizeToSsml,
+  inferEdgeExtension,
+} from "./tts.js";
 
 const DEFAULT_EDGE_VOICE = "en-US-MichelleNeural";
 const DEFAULT_EDGE_LANG = "en-US";
@@ -31,6 +37,12 @@ type MicrosoftProviderConfig = {
   saveSubtitles: boolean;
   proxy?: string;
   timeoutMs?: number;
+  /** Human-like SSML synthesis: emphasis, pauses, optional speaking style (default on). */
+  expressive: boolean;
+  /** mstts express-as style (e.g. "chat", "cheerful") — needs a style-capable voice. */
+  style?: string;
+  /** express-as style intensity, 0.01–2. */
+  styleDegree?: string;
 };
 
 type MicrosoftVoiceListEntry = {
@@ -65,6 +77,9 @@ function normalizeMicrosoftProviderConfig(
     saveSubtitles: asBoolean(raw.saveSubtitles) ?? false,
     proxy: trimToUndefined(raw.proxy),
     timeoutMs: asFiniteNumber(raw.timeoutMs),
+    expressive: asBoolean(raw.expressive) ?? true,
+    style: trimToUndefined(raw.style),
+    styleDegree: trimToUndefined(raw.styleDegree),
   };
 }
 
@@ -83,6 +98,9 @@ function readMicrosoftProviderConfig(config: SpeechProviderConfig): MicrosoftPro
     saveSubtitles: asBoolean(config.saveSubtitles) ?? defaults.saveSubtitles,
     proxy: trimToUndefined(config.proxy) ?? defaults.proxy,
     timeoutMs: asFiniteNumber(config.timeoutMs) ?? defaults.timeoutMs,
+    expressive: asBoolean(config.expressive) ?? defaults.expressive,
+    style: trimToUndefined(config.style) ?? defaults.style,
+    styleDegree: trimToUndefined(config.styleDegree) ?? defaults.styleDegree,
   };
 }
 
@@ -227,17 +245,45 @@ export function buildMicrosoftSpeechProvider(): SpeechProviderPlugin {
         const runEdge = async (format: string) => {
           const fileExtension = inferEdgeExtension(format);
           const outputPath = path.join(tempDir, `speech${fileExtension}`);
-          await edgeTTS({
-            text: req.text,
-            outputPath,
-            config: {
-              ...config,
-              voice,
-              lang,
-              outputFormat: format,
-            },
-            timeoutMs: req.timeoutMs,
-          });
+          // Expressive path: human-like stress and pauses via SSML. Subtitles
+          // need the legacy word-boundary flow; any expressive failure falls
+          // back to the plain path so voice never breaks.
+          let synthesized = false;
+          if (config.expressive && !config.saveSubtitles) {
+            try {
+              await edgeTTSSSML({
+                ssml: buildExpressiveSsml({
+                  innerSsml: humanizeToSsml(req.text),
+                  voice,
+                  lang,
+                  rate: config.rate,
+                  pitch: config.pitch,
+                  volume: config.volume,
+                  style: config.style,
+                  styleDegree: config.styleDegree,
+                }),
+                outputPath,
+                outputFormat: format,
+                timeoutMs: config.timeoutMs ?? req.timeoutMs,
+              });
+              synthesized = true;
+            } catch {
+              synthesized = false;
+            }
+          }
+          if (!synthesized) {
+            await edgeTTS({
+              text: req.text,
+              outputPath,
+              config: {
+                ...config,
+                voice,
+                lang,
+                outputFormat: format,
+              },
+              timeoutMs: req.timeoutMs,
+            });
+          }
           const audioBuffer = readFileSync(outputPath);
           return {
             audioBuffer,

@@ -129,6 +129,7 @@ import {
   resolveModelPrimary,
   sortLocaleStrings,
 } from "./views/agents-utils.ts";
+import { normalizeMessage } from "./chat/message-normalizer.ts";
 import { renderChat } from "./views/chat.ts";
 import { renderCommandPalette } from "./views/command-palette.ts";
 import { renderConfig } from "./views/config.ts";
@@ -202,6 +203,12 @@ function lazyRender<M>(getter: () => M | null, render: (mod: M) => unknown) {
   const mod = getter();
   return mod ? render(mod) : nothing;
 }
+
+const SEARCH_SHORTCUT_LABEL = /mac/i.test(
+  typeof navigator === "undefined" ? "" : (navigator.platform ?? ""),
+)
+  ? "⌘K"
+  : "Ctrl K";
 
 const UPDATE_BANNER_DISMISS_KEY = "openclaw:control-ui:update-banner-dismissed:v1";
 const CRON_THINKING_SUGGESTIONS = ["off", "minimal", "low", "medium", "high"];
@@ -529,11 +536,12 @@ export function renderApp(state: AppViewState) {
               @click=${() => {
                 state.paletteOpen = !state.paletteOpen;
               }}
-              title="Search or jump to… (⌘K)"
-              aria-label="Open command palette"
+              title="Search pages, features, settings… (${SEARCH_SHORTCUT_LABEL})"
+              aria-label="Search features"
             >
-              <span class="topbar-search__label">${t("common.search")}</span>
-              <kbd class="topbar-search__kbd">⌘K</kbd>
+              <span class="topbar-search__icon" aria-hidden="true">${icons.search}</span>
+              <span class="topbar-search__label">${t("overview.palette.placeholder")}</span>
+              <kbd class="topbar-search__kbd">${SEARCH_SHORTCUT_LABEL}</kbd>
             </button>
             <div class="topbar-status">
               ${isChat ? renderChatMobileToggle(state) : nothing}
@@ -690,8 +698,54 @@ export function renderApp(state: AppViewState) {
               <div>
                 ${isChat
                   ? renderChatSessionSelect(state)
-                  : html`<div class="page-title">${titleForTab(state.tab)}</div>`}
+                  : html`<div class="page-title">
+                      ${titleForTab(state.tab)}
+                      ${(() => {
+                        const helpKey = `pageHelp.${state.tab}`;
+                        const helpText = t(helpKey);
+                        if (helpText === helpKey) {
+                          return nothing;
+                        }
+                        return html`<button
+                          type="button"
+                          class="page-help-toggle ${state.pageHelpOpen ? "is-open" : ""}"
+                          title=${state.pageHelpOpen ? "Hide explanation" : "What is this page?"}
+                          aria-label="What is this page?"
+                          aria-expanded=${state.pageHelpOpen}
+                          @click=${() => {
+                            state.pageHelpOpen = !state.pageHelpOpen;
+                          }}
+                        >
+                          ?
+                        </button>`;
+                      })()}
+                    </div>`}
                 ${isChat ? nothing : html`<div class="page-sub">${subtitleForTab(state.tab)}</div>`}
+                ${(() => {
+                  if (isChat || !state.pageHelpOpen) {
+                    return nothing;
+                  }
+                  const helpKey = `pageHelp.${state.tab}`;
+                  const helpText = t(helpKey);
+                  if (helpText === helpKey) {
+                    return nothing;
+                  }
+                  return html`<div class="page-help" role="note">
+                    <span class="page-help__icon">${icons.book}</span>
+                    <span class="page-help__text">${helpText}</span>
+                    <button
+                      type="button"
+                      class="page-help__close"
+                      title="Hide"
+                      aria-label="Hide explanation"
+                      @click=${() => {
+                        state.pageHelpOpen = false;
+                      }}
+                    >
+                      ${icons.x}
+                    </button>
+                  </div>`;
+                })()}
               </div>
               <div class="page-meta">
                 ${state.tab === "dreams"
@@ -2301,34 +2355,36 @@ export function renderApp(state: AppViewState) {
                 }
                 void state.loadAssistantIdentity();
               };
-              const worldActiveAgentId = resolvedAgentId ?? null;
+              // The "active" agent for the world panel is whichever agent the
+              // live chat session currently targets (set by switchToAgent on
+              // select/send), NOT the Agents-tab selection — otherwise the
+              // panel shows main's live feed even when another avatar is open.
+              const worldActiveAgentId = state.worldSelectedAgentId
+                ? resolveAgentIdFromSessionKey(state.sessionKey)
+                : null;
+              const worldSelectedAgentId = state.worldSelectedAgentId
+                ? resolveAgentIdFromSessionKey(
+                    buildAgentMainSessionKey({ agentId: state.worldSelectedAgentId }),
+                  )
+                : null;
               const liveMessages =
-                worldActiveAgentId && worldActiveAgentId === state.worldSelectedAgentId
+                worldActiveAgentId && worldActiveAgentId === worldSelectedAgentId
                   ? (state.chatMessages ?? [])
                       .slice(-6)
                       .map((raw) => {
-                        const msg = raw as {
-                          role?: unknown;
-                          content?: unknown;
-                          text?: unknown;
-                        };
-                        let text = "";
-                        const c = msg?.content;
-                        if (typeof c === "string") {
-                          text = c;
-                        } else if (Array.isArray(c)) {
-                          text = c
-                            .map((p) =>
-                              typeof p === "string"
-                                ? p
-                                : ((p as { text?: unknown })?.text as string) ?? "",
-                            )
-                            .join(" ");
-                        } else if (typeof msg?.text === "string") {
-                          text = msg.text;
-                        }
-                        text = text.replace(/\s+/g, " ").trim().slice(0, 160);
-                        return { role: String(msg?.role ?? "msg"), text };
+                        // Reuse the chat view's normalizer so the world feed
+                        // strips AI-facing inbound metadata envelopes from user
+                        // messages (otherwise reloaded history shows a raw
+                        // "Sender (untrusted metadata): {json}…" blob instead of
+                        // the user's actual prompt).
+                        const normalized = normalizeMessage(raw);
+                        const text = normalized.content
+                          .map((item) => (item.type === "text" ? (item.text ?? "") : ""))
+                          .join(" ")
+                          .replace(/\s+/g, " ")
+                          .trim()
+                          .slice(0, 160);
+                        return { role: normalized.role, text };
                       })
                       .filter((entry) => entry.text)
                   : [];
@@ -2336,14 +2392,31 @@ export function renderApp(state: AppViewState) {
                 agents: state.agentsList?.agents ?? [],
                 loading: state.agentsLoading,
                 basePath: state.basePath ?? "",
-                activeAgentId: worldActiveAgentId,
+                // Light up the avatar that the live session targets — the
+                // raw selected id when the session key resolves to it.
+                activeAgentId:
+                  worldActiveAgentId && worldActiveAgentId === worldSelectedAgentId
+                    ? state.worldSelectedAgentId
+                    : null,
                 selectedAgentId: state.worldSelectedAgentId,
                 busy: state.chatSending || Boolean(state.chatRunId),
                 liveText: state.chatStream,
                 liveMessages,
                 promptValue: state.worldPrompt,
+                theme: state.worldTheme,
+                onThemeChange: (theme: string) => {
+                  state.worldTheme = theme;
+                  try {
+                    localStorage.setItem("granted.worldTheme", theme);
+                  } catch {
+                    // ignore storage failures (private mode, etc.)
+                  }
+                },
                 onSelect: (agentId: string) => {
                   state.worldSelectedAgentId = agentId;
+                  // Point the live chat session at the clicked agent so the
+                  // panel shows that agent's own history/feed (not main's).
+                  switchToAgent(agentId, true);
                 },
                 onClosePanel: () => {
                   state.worldSelectedAgentId = null;
@@ -2367,6 +2440,9 @@ export function renderApp(state: AppViewState) {
                     switchToAgent(agentId, true);
                   }
                   state.setTab("chat" as import("./navigation.ts").Tab);
+                },
+                onOpenAgents: () => {
+                  state.setTab("agents" as import("./navigation.ts").Tab);
                 },
                 onReload: () => {
                   void loadAgents(state);

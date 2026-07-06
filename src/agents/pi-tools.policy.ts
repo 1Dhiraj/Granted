@@ -33,6 +33,7 @@ const SUBAGENT_TOOL_DENY_ALWAYS = [
   "gateway",
   "agents_list",
   "agent_builder",
+  "skill_recorder",
   // Interactive setup - not a task
   "whatsapp_login",
   // Status/scheduling - main agent coordinates

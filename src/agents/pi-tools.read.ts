@@ -48,6 +48,8 @@ const MAX_ADAPTIVE_READ_PAGES = 8;
 type OpenClawReadToolOptions = {
   modelContextWindowTokens?: number;
   imageSanitization?: ImageSanitizationLimits;
+  /** Workspace root used to resolve relative paths for directory listings. */
+  workspaceRoot?: string;
 };
 
 type ReadTruncationDetails = {
@@ -279,6 +281,73 @@ async function executeReadWithAdaptivePaging(params: {
     finalText += `\n\n[Read output capped at ${formatBytes(params.maxBytes)} for this call. Use offset=${continuationOffset} to continue.]`;
   }
   return withToolResultText(firstResult, finalText);
+}
+
+const MAX_DIRECTORY_LISTING_ENTRIES = 300;
+
+/**
+ * If the requested path is a directory, return a listing instead of letting the
+ * underlying read fail with EISDIR. Models routinely try to read directories
+ * (and have no other approval-free way to discover files), so this turns a
+ * dead-end error into useful output. Returns null when the path is not a
+ * host directory so normal file reads proceed unchanged.
+ */
+async function tryReadDirectoryListing(
+  filePath: string,
+  workspaceRoot?: string,
+): Promise<AgentToolResult<unknown> | null> {
+  // Only host (non-sandboxed) read tools pass workspaceRoot; sandboxed reads
+  // must not stat host paths, so the listing feature stays off for them.
+  if (!workspaceRoot) {
+    return null;
+  }
+  let candidate = filePath.startsWith("@") ? filePath.slice(1) : filePath;
+  if (/^file:\/\//i.test(candidate)) {
+    const localFilePath = trySafeFileURLToPath(candidate);
+    if (!localFilePath) {
+      return null;
+    }
+    candidate = localFilePath;
+  }
+  const resolved = path.isAbsolute(candidate)
+    ? path.resolve(candidate)
+    : workspaceRoot
+      ? path.resolve(workspaceRoot, candidate)
+      : null;
+  if (!resolved) {
+    return null;
+  }
+  try {
+    const stat = await fs.stat(resolved);
+    if (!stat.isDirectory()) {
+      return null;
+    }
+    const entries = await fs.readdir(resolved, { withFileTypes: true });
+    entries.sort((a, b) => {
+      if (a.isDirectory() !== b.isDirectory()) {
+        return a.isDirectory() ? -1 : 1;
+      }
+      return a.name.localeCompare(b.name);
+    });
+    const shown = entries.slice(0, MAX_DIRECTORY_LISTING_ENTRIES);
+    const lines = shown.map((entry) => (entry.isDirectory() ? `${entry.name}/` : entry.name));
+    const truncatedNote =
+      entries.length > shown.length
+        ? `\n[${entries.length - shown.length} more entries not shown]`
+        : "";
+    const text =
+      lines.length === 0
+        ? `Directory ${resolved} is empty.`
+        : `Directory ${resolved} (${entries.length} entries):\n${lines.join("\n")}${truncatedNote}`;
+    return {
+      content: [{ type: "text", text } as unknown as ToolContentBlock] as AgentToolResult<unknown>["content"],
+      details: { directory: true, path: resolved, entries: entries.length },
+    };
+  } catch {
+    // Not a readable host directory (missing, sandbox-only path, or perms) —
+    // fall through to the normal read so its error reporting applies.
+    return null;
+  }
 }
 
 function rewriteReadImageHeader(text: string, mimeType: string): string {
@@ -631,9 +700,17 @@ export function createOpenClawReadTool(
 ): AnyAgentTool {
   return {
     ...base,
+    description: `${base.description} If the path is a directory, returns the directory listing (folders end with /).`,
     execute: async (toolCallId, params, signal) => {
       const record = getToolParamsRecord(params);
       assertRequiredParams(record, REQUIRED_PARAM_GROUPS.read, base.name);
+      const requestedPath = typeof record?.path === "string" ? record.path : undefined;
+      if (requestedPath?.trim()) {
+        const listing = await tryReadDirectoryListing(requestedPath, options?.workspaceRoot);
+        if (listing) {
+          return listing;
+        }
+      }
       const result = await executeReadWithAdaptivePaging({
         base,
         toolCallId,

@@ -355,6 +355,7 @@ export type AppViewState = {
     paletteOpen: boolean;
     paletteQuery: string;
     paletteActiveIndex: number;
+    pageHelpOpen: boolean;
     streamMode: boolean;
     overviewShowGatewayToken: boolean;
     overviewShowGatewayPassword: boolean;

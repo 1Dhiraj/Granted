@@ -1,0 +1,11 @@
+Environment scenes (forest.png, office.png) are composed from tiles in the
+"Ninja Adventure" asset pack by Pixel-Boy and AAA.
+License: CC0 1.0 (public domain) - free for commercial use, no attribution required.
+Source: https://pixel-boy.itch.io/ninja-adventure-asset-pack
+        https://github.com/pixel-boy/NinjaAdventure
+
+forest.png - grass clearing framed by trees, with a pond and stumps
+office.png - a walled interior room with a wood floor and rug
+
+Both were assembled from the pack's floor/tree/wall tilesheets and are used as the
+world background per theme. Credit kept here as good practice (CC0 requires none).
