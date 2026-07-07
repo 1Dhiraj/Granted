@@ -422,6 +422,35 @@ export function wrapToolWorkspaceRootGuard(tool: AnyAgentTool, root: string): An
   return wrapToolWorkspaceRootGuardWithOptions(tool, root);
 }
 
+/** Decode a local file:// URL whose pathname sits under the container workdir. */
+function tryContainerWorkdirFileUrlPath(
+  fileUrl: string,
+  containerWorkdir: string,
+): string | undefined {
+  let parsed: URL;
+  try {
+    parsed = new URL(fileUrl);
+  } catch {
+    return undefined;
+  }
+  if (parsed.protocol !== "file:") {
+    return undefined;
+  }
+  if (parsed.hostname && parsed.hostname !== "localhost") {
+    return undefined;
+  }
+  let pathname: string;
+  try {
+    pathname = decodeURIComponent(parsed.pathname).replace(/\\/g, "/");
+  } catch {
+    return undefined;
+  }
+  if (pathname === containerWorkdir || pathname.startsWith(`${containerWorkdir}/`)) {
+    return pathname;
+  }
+  return undefined;
+}
+
 function mapContainerPathToWorkspaceRoot(params: {
   filePath: string;
   root: string;
@@ -441,11 +470,19 @@ function mapContainerPathToWorkspaceRoot(params: {
 
   let candidate = params.filePath.startsWith("@") ? params.filePath.slice(1) : params.filePath;
   if (/^file:\/\//i.test(candidate)) {
-    const localFilePath = trySafeFileURLToPath(candidate);
-    if (!localFilePath) {
-      return params.filePath;
+    // Container paths are Linux-style (/workspace/...). Map those straight from the
+    // URL pathname so Windows hosts (where fileURLToPath rejects drive-less paths)
+    // still resolve container-workdir file URLs.
+    const containerUrlPath = tryContainerWorkdirFileUrlPath(candidate, normalizedWorkdir);
+    if (containerUrlPath !== undefined) {
+      candidate = containerUrlPath;
+    } else {
+      const localFilePath = trySafeFileURLToPath(candidate);
+      if (!localFilePath) {
+        return params.filePath;
+      }
+      candidate = localFilePath;
     }
-    candidate = localFilePath;
   }
 
   const normalizedCandidate = candidate.replace(/\\/g, "/");
@@ -615,11 +652,43 @@ export function wrapToolMemoryFlushAppendOnlyWrite(
   };
 }
 
+/**
+ * Assert the path is inside the workspace root or one of the extra granted roots
+ * (tools.fs.allowPaths). Relative paths always resolve against the workspace root.
+ */
+async function assertPathWithinAllowedRoots(params: {
+  filePath: string;
+  cwd: string;
+  workspaceRoot: string;
+  allowPaths?: string[];
+}): Promise<void> {
+  try {
+    await assertSandboxPath({
+      filePath: params.filePath,
+      cwd: params.cwd,
+      root: params.workspaceRoot,
+    });
+    return;
+  } catch (workspaceError) {
+    for (const allowedRoot of params.allowPaths ?? []) {
+      try {
+        await assertSandboxPath({ filePath: params.filePath, cwd: params.cwd, root: allowedRoot });
+        return;
+      } catch {
+        // Not inside this granted root; try the next one.
+      }
+    }
+    throw workspaceError;
+  }
+}
+
 export function wrapToolWorkspaceRootGuardWithOptions(
   tool: AnyAgentTool,
   root: string,
   options?: {
     containerWorkdir?: string;
+    /** Extra directories (absolute paths) the tool may access besides the workspace root. */
+    allowPaths?: string[];
   },
 ): AnyAgentTool {
   return {
@@ -633,7 +702,12 @@ export function wrapToolWorkspaceRootGuardWithOptions(
           root,
           containerWorkdir: options?.containerWorkdir,
         });
-        await assertSandboxPath({ filePath: sandboxPath, cwd: root, root });
+        await assertPathWithinAllowedRoots({
+          filePath: sandboxPath,
+          cwd: root,
+          workspaceRoot: root,
+          allowPaths: options?.allowPaths,
+        });
       }
       return tool.execute(toolCallId, args, signal, onUpdate);
     },
@@ -676,14 +750,20 @@ export function createSandboxedEditTool(params: SandboxToolParams) {
   return wrapToolParamValidation(withRecovery, REQUIRED_PARAM_GROUPS.edit);
 }
 
-export function createHostWorkspaceWriteTool(root: string, options?: { workspaceOnly?: boolean }) {
+export function createHostWorkspaceWriteTool(
+  root: string,
+  options?: { workspaceOnly?: boolean; allowPaths?: string[] },
+) {
   const base = createWriteTool(root, {
     operations: createHostWriteOperations(root, options),
   }) as unknown as AnyAgentTool;
   return wrapToolParamValidation(base, REQUIRED_PARAM_GROUPS.write);
 }
 
-export function createHostWorkspaceEditTool(root: string, options?: { workspaceOnly?: boolean }) {
+export function createHostWorkspaceEditTool(
+  root: string,
+  options?: { workspaceOnly?: boolean; allowPaths?: string[] },
+) {
   const base = createEditTool(root, {
     operations: createHostEditOperations(root, options),
   }) as unknown as AnyAgentTool;
@@ -780,7 +860,44 @@ async function writeHostFile(absolutePath: string, content: string) {
   await fs.writeFile(resolved, content, "utf-8");
 }
 
-function createHostWriteOperations(root: string, options?: { workspaceOnly?: boolean }) {
+/**
+ * Resolve which granted root (workspace or tools.fs.allowPaths entry) contains the
+ * candidate path. Throws the workspace-boundary error when no root contains it.
+ */
+function resolveContainingRootTarget(params: {
+  root: string;
+  allowPaths?: string[];
+  candidate: string;
+  allowRoot?: boolean;
+}): { rootDir: string; relativePath: string } {
+  try {
+    return {
+      rootDir: params.root,
+      relativePath: toRelativeWorkspacePath(params.root, params.candidate, {
+        allowRoot: params.allowRoot,
+      }),
+    };
+  } catch (workspaceError) {
+    for (const allowedRoot of params.allowPaths ?? []) {
+      try {
+        return {
+          rootDir: allowedRoot,
+          relativePath: toRelativeWorkspacePath(allowedRoot, params.candidate, {
+            allowRoot: params.allowRoot,
+          }),
+        };
+      } catch {
+        // Not inside this granted root; try the next one.
+      }
+    }
+    throw workspaceError;
+  }
+}
+
+function createHostWriteOperations(
+  root: string,
+  options?: { workspaceOnly?: boolean; allowPaths?: string[] },
+) {
   const workspaceOnly = options?.workspaceOnly ?? false;
 
   if (!workspaceOnly) {
@@ -794,19 +911,28 @@ function createHostWriteOperations(root: string, options?: { workspaceOnly?: boo
     } as const;
   }
 
-  // When workspaceOnly is true, enforce workspace boundary
+  const allowPaths = options?.allowPaths;
+
+  // When workspaceOnly is true, enforce workspace (+ granted roots) boundary
   return {
     mkdir: async (dir: string) => {
-      const relative = toRelativeWorkspacePath(root, dir, { allowRoot: true });
-      const resolved = relative ? path.resolve(root, relative) : path.resolve(root);
-      await assertSandboxPath({ filePath: resolved, cwd: root, root });
+      const target = resolveContainingRootTarget({
+        root,
+        allowPaths,
+        candidate: dir,
+        allowRoot: true,
+      });
+      const resolved = target.relativePath
+        ? path.resolve(target.rootDir, target.relativePath)
+        : path.resolve(target.rootDir);
+      await assertSandboxPath({ filePath: resolved, cwd: target.rootDir, root: target.rootDir });
       await fs.mkdir(resolved, { recursive: true });
     },
     writeFile: async (absolutePath: string, content: string) => {
-      const relative = toRelativeWorkspacePath(root, absolutePath);
+      const target = resolveContainingRootTarget({ root, allowPaths, candidate: absolutePath });
       await writeFileWithinRoot({
-        rootDir: root,
-        relativePath: relative,
+        rootDir: target.rootDir,
+        relativePath: target.relativePath,
         data: content,
         mkdir: true,
       });
@@ -814,7 +940,10 @@ function createHostWriteOperations(root: string, options?: { workspaceOnly?: boo
   } as const;
 }
 
-function createHostEditOperations(root: string, options?: { workspaceOnly?: boolean }) {
+function createHostEditOperations(
+  root: string,
+  options?: { workspaceOnly?: boolean; allowPaths?: string[] },
+) {
   const workspaceOnly = options?.workspaceOnly ?? false;
 
   if (!workspaceOnly) {
@@ -832,29 +961,31 @@ function createHostEditOperations(root: string, options?: { workspaceOnly?: bool
     } as const;
   }
 
-  // When workspaceOnly is true, enforce workspace boundary
+  const allowPaths = options?.allowPaths;
+
+  // When workspaceOnly is true, enforce workspace (+ granted roots) boundary
   return {
     readFile: async (absolutePath: string) => {
-      const relative = toRelativeWorkspacePath(root, absolutePath);
+      const target = resolveContainingRootTarget({ root, allowPaths, candidate: absolutePath });
       const safeRead = await readFileWithinRoot({
-        rootDir: root,
-        relativePath: relative,
+        rootDir: target.rootDir,
+        relativePath: target.relativePath,
       });
       return safeRead.buffer;
     },
     writeFile: async (absolutePath: string, content: string) => {
-      const relative = toRelativeWorkspacePath(root, absolutePath);
+      const target = resolveContainingRootTarget({ root, allowPaths, candidate: absolutePath });
       await writeFileWithinRoot({
-        rootDir: root,
-        relativePath: relative,
+        rootDir: target.rootDir,
+        relativePath: target.relativePath,
         data: content,
         mkdir: true,
       });
     },
     access: async (absolutePath: string) => {
-      let relative: string;
+      let target: { rootDir: string; relativePath: string };
       try {
-        relative = toRelativeWorkspacePath(root, absolutePath);
+        target = resolveContainingRootTarget({ root, allowPaths, candidate: absolutePath });
       } catch {
         // Path escapes workspace root.  Don't throw here – the upstream
         // library replaces any `access` error with a misleading "File not
@@ -865,8 +996,8 @@ function createHostEditOperations(root: string, options?: { workspaceOnly?: bool
       }
       try {
         const opened = await openFileWithinRoot({
-          rootDir: root,
-          relativePath: relative,
+          rootDir: target.rootDir,
+          relativePath: target.relativePath,
         });
         await opened.handle.close().catch(() => {});
       } catch (error) {

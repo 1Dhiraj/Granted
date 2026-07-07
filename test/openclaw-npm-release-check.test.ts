@@ -366,11 +366,11 @@ describe("collectReleasePackageMetadataErrors", () => {
   it("validates the expected npm package metadata", () => {
     expect(
       collectReleasePackageMetadataErrors({
-        name: "openclaw",
+        name: "granted-ai",
         description: "Multi-channel AI gateway with extensible messaging integrations",
         license: "MIT",
-        repository: { url: "git+https://github.com/openclaw/openclaw.git" },
-        bin: { openclaw: "openclaw.mjs" },
+        repository: { url: "git+https://github.com/1Dhiraj/granted.git" },
+        bin: { granted: "openclaw.mjs" },
         peerDependencies: { "node-llama-cpp": "3.18.1" },
         peerDependenciesMeta: { "node-llama-cpp": { optional: true } },
       }),
@@ -380,11 +380,11 @@ describe("collectReleasePackageMetadataErrors", () => {
   it("requires node-llama-cpp to stay an optional peer", () => {
     expect(
       collectReleasePackageMetadataErrors({
-        name: "openclaw",
+        name: "granted-ai",
         description: "Multi-channel AI gateway with extensible messaging integrations",
         license: "MIT",
-        repository: { url: "git+https://github.com/openclaw/openclaw.git" },
-        bin: { openclaw: "openclaw.mjs" },
+        repository: { url: "git+https://github.com/1Dhiraj/granted.git" },
+        bin: { granted: "openclaw.mjs" },
         peerDependencies: { "node-llama-cpp": "3.18.1" },
       }),
     ).toContain('package.json peerDependenciesMeta["node-llama-cpp"].optional must be true.');

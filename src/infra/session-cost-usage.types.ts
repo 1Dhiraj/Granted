@@ -60,6 +60,8 @@ export type CostUsageSummary = {
   days: number;
   daily: CostUsageDailyEntry[];
   totals: CostUsageTotals;
+  /** Cumulative cost in USD per provider id (lowercase), for per-key budget enforcement. */
+  providerCosts?: Record<string, number>;
 };
 
 export type SessionDailyUsage = {

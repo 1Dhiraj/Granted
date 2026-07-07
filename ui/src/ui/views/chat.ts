@@ -38,6 +38,15 @@ import {
   startTalk,
   stopTalk,
 } from "../chat/talk-mode.ts";
+import {
+  disableWakeWord,
+  enableWakeWord,
+  ensureWakeInit,
+  getWakePhrase,
+  isWakeEnabled,
+  isWakeSupported,
+  setWakePhrase,
+} from "../chat/wake-word.ts";
 import { icons } from "../icons.ts";
 import { normalizeLowercaseStringOrEmpty } from "../string-coerce.ts";
 import { detectTextDirection } from "../text-direction.ts";
@@ -659,7 +668,7 @@ function renderWelcomeState(props: ChatProps): TemplateResult {
             style="width:56px; height:56px; border-radius:50%; object-fit:cover;"
           />`
         : html`<div class="agent-chat__avatar agent-chat__avatar--logo">
-            <img src=${logoUrl} alt="OpenClaw" />
+            <img src=${logoUrl} alt="Granted" />
           </div>`}
       <h2>${name}</h2>
       <div class="agent-chat__badges">
@@ -1412,6 +1421,49 @@ export function renderChat(props: ChatProps) {
                     ?disabled=${!props.connected}
                   >
                     ${icons.radio}
+                  </button>
+                `
+              : nothing}
+            ${isWakeSupported() && isTalkSupported()
+              ? html`
+                  ${(ensureWakeInit({
+                    send: (text) => props.onSendDirect?.(text),
+                    requestUpdate,
+                  }),
+                  nothing)}
+                  <button
+                    class="agent-chat__input-btn"
+                    style=${isWakeEnabled() ? "color: var(--accent, #4ade80)" : ""}
+                    @click=${(e: MouseEvent) => {
+                      if (isWakeEnabled()) {
+                        disableWakeWord();
+                      } else {
+                        if (e.shiftKey || !localStorage.getItem("openclaw.wakeWord.phrase")) {
+                          const next = window.prompt(
+                            "Wake phrase (say this to start talk mode hands-free):",
+                            getWakePhrase(),
+                          );
+                          if (next === null) {
+                            return;
+                          }
+                          if (next.trim()) {
+                            setWakePhrase(next);
+                          }
+                        }
+                        enableWakeWord({
+                          send: (text) => props.onSendDirect?.(text),
+                          requestUpdate,
+                        });
+                      }
+                      requestUpdate();
+                    }}
+                    title=${isWakeEnabled()
+                      ? `Wake word ON — say "${getWakePhrase()}" to start talking (click to turn off)`
+                      : `Enable wake word ("${getWakePhrase()}") — shift-click to change the phrase`}
+                    aria-label="Wake word"
+                    ?disabled=${!props.connected}
+                  >
+                    ${icons.zap}
                   </button>
                 `
               : nothing}

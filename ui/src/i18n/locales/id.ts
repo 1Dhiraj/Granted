@@ -237,7 +237,7 @@ export const id: TranslationMap = {
     pairing: {
       hint: "Perangkat ini memerlukan persetujuan pairing dari host gateway.",
       mobileHint:
-        "Di seluler? Salin URL lengkap (termasuk #token=...) dari openclaw dashboard --no-open di desktop Anda.",
+        "Di seluler? Salin URL lengkap (termasuk #token=...) dari granted dashboard --no-open di desktop Anda.",
     },
     insecure: {
       hint: "Halaman ini menggunakan HTTP, jadi browser memblokir identitas perangkat. Gunakan HTTPS (Tailscale Serve) atau buka {url} di host gateway.",

@@ -241,7 +241,7 @@ export const ja_JP: TranslationMap = {
     pairing: {
       hint: "このデバイスは Gateway ホストからのペアリング承認が必要です。",
       mobileHint:
-        "モバイルを使用していますか？ デスクトップで openclaw dashboard --no-open から完全な URL（#token=... を含む）をコピーしてください。",
+        "モバイルを使用していますか？ デスクトップで granted dashboard --no-open から完全な URL（#token=... を含む）をコピーしてください。",
     },
     insecure: {
       hint: "このページは HTTP のため、ブラウザーがデバイス ID をブロックしています。HTTPS（Tailscale Serve）を使用するか、Gateway ホストで {url} を開いてください。",

@@ -121,6 +121,60 @@ describe("session cost usage", () => {
     });
   });
 
+  it("breaks down cumulative cost per provider for budget enforcement", async () => {
+    const root = await makeSessionCostRoot("cost-provider");
+    const sessionsDir = path.join(root, "agents", "main", "sessions");
+    await fs.mkdir(sessionsDir, { recursive: true });
+    const sessionFile = path.join(sessionsDir, "sess-providers.jsonl");
+    const now = new Date();
+
+    const entries = [
+      {
+        type: "message",
+        timestamp: now.toISOString(),
+        message: {
+          role: "assistant",
+          provider: "Anthropic",
+          model: "claude-opus-4-8",
+          usage: { input: 10, output: 20, totalTokens: 30, cost: { total: 0.5 } },
+        },
+      },
+      {
+        type: "message",
+        timestamp: now.toISOString(),
+        message: {
+          role: "assistant",
+          provider: "anthropic",
+          model: "claude-opus-4-8",
+          usage: { input: 10, output: 20, totalTokens: 30, cost: { total: 0.25 } },
+        },
+      },
+      {
+        type: "message",
+        timestamp: now.toISOString(),
+        message: {
+          role: "assistant",
+          provider: "openai",
+          model: "gpt-5.4",
+          usage: { input: 5, output: 5, totalTokens: 10, cost: { total: 0.1 } },
+        },
+      },
+    ];
+
+    await fs.writeFile(
+      sessionFile,
+      entries.map((entry) => JSON.stringify(entry)).join("\n"),
+      "utf-8",
+    );
+
+    await withStateDir(root, async () => {
+      const summary = await loadCostUsageSummary({ days: 30 });
+      expect(summary.providerCosts?.anthropic).toBeCloseTo(0.75, 5);
+      expect(summary.providerCosts?.openai).toBeCloseTo(0.1, 5);
+      expect(summary.totals.totalCost).toBeCloseTo(0.85, 5);
+    });
+  });
+
   it("summarizes a single session file", async () => {
     const root = await makeSessionCostRoot("cost-session");
     const sessionFile = path.join(root, "session.jsonl");

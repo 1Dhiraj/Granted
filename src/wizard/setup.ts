@@ -127,7 +127,26 @@ export async function runSetupWizard(
 ) {
   const onboardHelpers = await import("../commands/onboard-helpers.js");
   onboardHelpers.printWizardHeader(runtime);
-  await prompter.intro("OpenClaw setup");
+  await prompter.intro("Granted setup");
+  await prompter.note(
+    [
+      "Granted runs on YOUR OWN API keys — nothing is shared, keys stay on this machine.",
+      "",
+      "What you need (all optional except one chat model key):",
+      "- Chat model (required): any ONE provider key — Anthropic, OpenAI, Google Gemini,",
+      "  OpenRouter, Groq, Together, Moonshot/Kimi, or a local model (Ollama, no key).",
+      "- Voice (optional): free Edge TTS works with no key; provider TTS keys improve quality.",
+      "- Web search (optional): Brave or Perplexity key.",
+      "",
+      "Only have one key? After setup, set agents.defaults.economyModel to a cheap model",
+      "(e.g. anthropic/claude-haiku-4-5) so background work (heartbeats, sub-agents,",
+      "compaction) never burns your premium model budget.",
+      "",
+      "Budget safety: cap total spend with agents.defaults.spendLimitUsd, or cap each key",
+      "with agents.defaults.spendLimitUsdByProvider — calls stop at the limit you set.",
+    ].join("\n"),
+    "Your API keys",
+  );
   await requireRiskAcknowledgement({ opts, prompter });
 
   const snapshot = await readConfigFileSnapshot();

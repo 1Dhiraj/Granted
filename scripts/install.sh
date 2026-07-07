@@ -1,7 +1,9 @@
 #!/bin/bash
 set -euo pipefail
 
-# OpenClaw Installer for macOS and Linux
+# Granted Installer for macOS and Linux
+# TODO(GRANTED_INSTALL_URL): serve from your own domain before launch; GitHub raw works today:
+#   curl -fsSL https://raw.githubusercontent.com/1Dhiraj/granted/main/scripts/install.sh | bash
 # Usage: curl -fsSL --proto '=https' --tlsv1.2 https://openclaw.ai/install.sh | bash
 
 BOLD='\033[1m'
@@ -15,7 +17,7 @@ ERROR='\033[38;2;230;57;70m'        # coral-mid     #e63946
 MUTED='\033[38;2;90;100;128m'       # text-muted    #5a6480
 NC='\033[0m' # No Color
 
-DEFAULT_TAGLINE="All your chats, one OpenClaw."
+DEFAULT_TAGLINE="Your AI. Your keys. Your machine."
 NODE_DEFAULT_MAJOR=24
 NODE_MIN_MAJOR=22
 NODE_MIN_MINOR=14
@@ -236,7 +238,7 @@ print_gum_status() {
 print_installer_banner() {
     if [[ -n "$GUM" ]]; then
         local title tagline hint card
-        title="$("$GUM" style --foreground "#ff4d4d" --bold "🦞 OpenClaw Installer")"
+        title="$("$GUM" style --foreground "#ff4d4d" --bold "Granted Installer")"
         tagline="$("$GUM" style --foreground "#8892b0" "$TAGLINE")"
         hint="$("$GUM" style --foreground "#5a6480" "modern installer mode")"
         card="$(printf '%s\n%s\n%s' "$title" "$tagline" "$hint")"
@@ -246,7 +248,7 @@ print_installer_banner() {
     fi
 
     echo -e "${ACCENT}${BOLD}"
-    echo "  🦞 OpenClaw Installer"
+    echo "  Granted Installer"
     echo -e "${NC}${INFO}  ${TAGLINE}${NC}"
     echo ""
 }
@@ -1593,7 +1595,12 @@ fix_npm_permissions() {
 ensure_openclaw_bin_link() {
     local npm_root=""
     npm_root="$(npm root -g 2>/dev/null || true)"
-    if [[ -z "$npm_root" || ! -d "$npm_root/openclaw" ]]; then
+    local pkg_dir=""
+    if [[ -n "$npm_root" && -d "$npm_root/granted-ai" ]]; then
+        pkg_dir="$npm_root/granted-ai"
+    elif [[ -n "$npm_root" && -d "$npm_root/openclaw" ]]; then
+        pkg_dir="$npm_root/openclaw"
+    else
         return 1
     fi
     local npm_bin=""
@@ -1602,17 +1609,17 @@ ensure_openclaw_bin_link() {
         return 1
     fi
     mkdir -p "$npm_bin"
-    if [[ ! -x "${npm_bin}/openclaw" ]]; then
-        ln -sf "$npm_root/openclaw/dist/entry.js" "${npm_bin}/openclaw"
-        ui_info "Created openclaw bin link at ${npm_bin}/openclaw"
+    if [[ ! -x "${npm_bin}/granted" ]]; then
+        ln -sf "$pkg_dir/dist/entry.js" "${npm_bin}/granted"
+        ui_info "Created granted bin link at ${npm_bin}/granted"
     fi
     return 0
 }
 
-# Check for existing OpenClaw installation
+# Check for existing Granted installation
 check_existing_openclaw() {
-    if [[ -n "$(type -P openclaw 2>/dev/null || true)" ]]; then
-        ui_info "Existing OpenClaw installation detected, upgrading"
+    if [[ -n "$(type -P granted 2>/dev/null || true)" || -n "$(type -P openclaw 2>/dev/null || true)" ]]; then
+        ui_info "Existing Granted installation detected, upgrading"
         return 0
     fi
     return 1
@@ -1842,41 +1849,50 @@ warn_openclaw_not_found() {
 }
 
 resolve_openclaw_bin() {
+    # Prefer the granted bin; keep openclaw as a fallback for pre-rebrand installs.
+    local candidates=("granted" "openclaw")
+    local name resolved
     refresh_shell_command_cache
-    local resolved=""
-    resolved="$(type -P openclaw 2>/dev/null || true)"
-    if [[ -n "$resolved" && -x "$resolved" ]]; then
-        echo "$resolved"
-        return 0
-    fi
+    for name in "${candidates[@]}"; do
+        resolved="$(type -P "$name" 2>/dev/null || true)"
+        if [[ -n "$resolved" && -x "$resolved" ]]; then
+            echo "$resolved"
+            return 0
+        fi
+    done
 
     ensure_npm_global_bin_on_path
     refresh_shell_command_cache
-    resolved="$(type -P openclaw 2>/dev/null || true)"
-    if [[ -n "$resolved" && -x "$resolved" ]]; then
-        echo "$resolved"
-        return 0
-    fi
+    for name in "${candidates[@]}"; do
+        resolved="$(type -P "$name" 2>/dev/null || true)"
+        if [[ -n "$resolved" && -x "$resolved" ]]; then
+            echo "$resolved"
+            return 0
+        fi
+    done
 
     local npm_bin=""
     npm_bin="$(npm_global_bin_dir || true)"
-    if [[ -n "$npm_bin" && -x "${npm_bin}/openclaw" ]]; then
-        echo "${npm_bin}/openclaw"
-        return 0
-    fi
+    for name in "${candidates[@]}"; do
+        if [[ -n "$npm_bin" && -x "${npm_bin}/${name}" ]]; then
+            echo "${npm_bin}/${name}"
+            return 0
+        fi
+    done
 
     maybe_nodenv_rehash
     refresh_shell_command_cache
-    resolved="$(type -P openclaw 2>/dev/null || true)"
-    if [[ -n "$resolved" && -x "$resolved" ]]; then
-        echo "$resolved"
-        return 0
-    fi
-
-    if [[ -n "$npm_bin" && -x "${npm_bin}/openclaw" ]]; then
-        echo "${npm_bin}/openclaw"
-        return 0
-    fi
+    for name in "${candidates[@]}"; do
+        resolved="$(type -P "$name" 2>/dev/null || true)"
+        if [[ -n "$resolved" && -x "$resolved" ]]; then
+            echo "$resolved"
+            return 0
+        fi
+        if [[ -n "$npm_bin" && -x "${npm_bin}/${name}" ]]; then
+            echo "${npm_bin}/${name}"
+            return 0
+        fi
+    done
 
     echo ""
     return 1
@@ -1884,12 +1900,12 @@ resolve_openclaw_bin() {
 
 install_openclaw_from_git() {
     local repo_dir="$1"
-    local repo_url="https://github.com/openclaw/openclaw.git"
+    local repo_url="https://github.com/1Dhiraj/granted.git"
 
     if [[ -d "$repo_dir/.git" ]]; then
-        ui_info "Installing OpenClaw from git checkout: ${repo_dir}"
+        ui_info "Installing Granted from git checkout: ${repo_dir}"
     else
-        ui_info "Installing OpenClaw from GitHub (${repo_url})"
+        ui_info "Installing Granted from GitHub (${repo_url})"
     fi
 
     if ! check_git; then
@@ -1965,7 +1981,7 @@ resolve_package_install_spec() {
     local package_name="$1"
     local value="$2"
     if [[ "${value,,}" == "main" ]]; then
-        echo "github:openclaw/openclaw#main"
+        echo "github:1Dhiraj/granted#main"
         return 0
     fi
     if is_explicit_package_install_spec "$value"; then
@@ -1980,14 +1996,14 @@ resolve_package_install_spec() {
 }
 
 install_openclaw() {
-    local package_name="openclaw"
+    local package_name="granted-ai"
     if [[ "$USE_BETA" == "1" ]]; then
         local beta_version=""
         beta_version="$(resolve_beta_version || true)"
         if [[ -n "$beta_version" ]]; then
             OPENCLAW_VERSION="$beta_version"
             ui_info "Beta tag detected (${beta_version})"
-            package_name="openclaw"
+            package_name="granted-ai"
         else
             OPENCLAW_VERSION="latest"
             ui_info "No beta tag found; using latest"
@@ -2003,9 +2019,9 @@ install_openclaw() {
         resolved_version="$(npm view "${package_name}@${OPENCLAW_VERSION}" version 2>/dev/null || true)"
     fi
     if [[ -n "$resolved_version" ]]; then
-        ui_info "Installing OpenClaw v${resolved_version}"
+        ui_info "Installing Granted v${resolved_version}"
     else
-        ui_info "Installing OpenClaw (${OPENCLAW_VERSION})"
+        ui_info "Installing Granted (${OPENCLAW_VERSION})"
     fi
     local install_spec=""
     install_spec="$(resolve_package_install_spec "${package_name}" "${OPENCLAW_VERSION}")"
@@ -2016,17 +2032,17 @@ install_openclaw() {
         install_openclaw_npm "${install_spec}"
     fi
 
-    if [[ "${OPENCLAW_VERSION}" == "latest" && "${package_name}" == "openclaw" ]]; then
+    if [[ "${OPENCLAW_VERSION}" == "latest" && "${package_name}" == "granted-ai" ]]; then
         if ! resolve_openclaw_bin &> /dev/null; then
-            ui_warn "npm install openclaw@latest failed; retrying openclaw@next"
+            ui_warn "npm install granted-ai@latest failed; retrying granted-ai@next"
             cleanup_npm_openclaw_paths
-            install_openclaw_npm "openclaw@next"
+            install_openclaw_npm "granted-ai@next"
         fi
     fi
 
     ensure_openclaw_bin_link || true
 
-    ui_success "OpenClaw installed"
+    ui_success "Granted installed"
 }
 
 # Run doctor for migrations (safe, non-interactive)
@@ -2087,7 +2103,7 @@ run_bootstrap_onboarding_if_needed() {
     fi
 
     if [[ ! -r /dev/tty || ! -w /dev/tty ]]; then
-        ui_info "BOOTSTRAP.md found but no TTY; run openclaw onboard to finish setup"
+        ui_info "BOOTSTRAP.md found but no TTY; run granted onboard to finish setup"
         return
     fi
 
@@ -2103,7 +2119,7 @@ run_bootstrap_onboarding_if_needed() {
     fi
 
     "$claw" onboard || {
-        ui_error "Onboarding failed; run openclaw onboard to retry"
+        ui_error "Onboarding failed; run granted onboard to retry"
         return
     }
 }
@@ -2145,7 +2161,7 @@ resolve_openclaw_version() {
     local version=""
     local raw_version_output=""
     local claw="${OPENCLAW_BIN:-}"
-    if [[ -z "$claw" ]] && command -v openclaw &> /dev/null; then
+    if [[ -z "$claw" ]] && command -v granted &> /dev/null || command -v openclaw &> /dev/null; then
         claw="$(command -v openclaw)"
     fi
     if [[ -n "$claw" ]]; then
@@ -2398,9 +2414,9 @@ main() {
 
     echo ""
     if [[ -n "$installed_version" ]]; then
-        ui_celebrate "🦞 OpenClaw installed successfully (${installed_version})!"
+        ui_celebrate "Granted installed successfully (${installed_version})!"
     else
-        ui_celebrate "🦞 OpenClaw installed successfully!"
+        ui_celebrate "Granted installed successfully!"
     fi
     if [[ "$is_upgrade" == "true" ]]; then
         local update_messages=(
@@ -2485,11 +2501,11 @@ main() {
                 ui_warn "Doctor failed; skipping plugin updates"
             fi
         else
-            ui_info "No TTY; run openclaw doctor and openclaw plugins update --all manually"
+            ui_info "No TTY; run granted doctor and granted plugins update --all manually"
         fi
     else
         if [[ "$NO_ONBOARD" == "1" || "$skip_onboard" == "true" ]]; then
-            ui_info "Skipping onboard (requested); run openclaw onboard later"
+            ui_info "Skipping onboard (requested); run granted onboard later"
         else
             local config_path="${OPENCLAW_CONFIG_PATH:-$HOME/.openclaw/openclaw.json}"
             if [[ -f "${config_path}" || -f "$HOME/.clawdbot/clawdbot.json" ]]; then
@@ -2501,6 +2517,15 @@ main() {
             fi
             ui_info "Starting setup"
             echo ""
+            if [[ "$skip_onboard" != "true" ]]; then
+                ui_info "Before you start, have your API keys ready (you bring your own keys):"
+                ui_info "  - Chat model (required): ONE key from Anthropic, OpenAI, Google Gemini,"
+                ui_info "    OpenRouter, Groq, Together, or Moonshot - or local models via Ollama (no key)"
+                ui_info "  - Voice (optional): free Edge TTS needs no key"
+                ui_info "  - Web search (optional): Brave or Perplexity key"
+                ui_info "  Your keys stay on this machine; you pay your provider directly."
+                echo ""
+            fi
             if [[ -r /dev/tty && -w /dev/tty ]]; then
                 local claw="${OPENCLAW_BIN:-}"
                 if [[ -z "$claw" ]]; then
@@ -2514,12 +2539,12 @@ main() {
                 exec </dev/tty
                 exec "$claw" onboard
             fi
-            ui_info "No TTY; run openclaw onboard to finish setup"
+            ui_info "No TTY; run granted onboard to finish setup"
             return 0
         fi
     fi
 
-    if command -v openclaw &> /dev/null; then
+    if command -v granted &> /dev/null || command -v openclaw &> /dev/null; then
         local claw="${OPENCLAW_BIN:-}"
         if [[ -z "$claw" ]]; then
             claw="$(resolve_openclaw_bin || true)"

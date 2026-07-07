@@ -112,6 +112,42 @@ describe("buildEmbeddedCompactionRuntimeContext", () => {
     expect(result.authProfileId).toBe("openai:p1");
   });
 
+  it("falls back to economyModel when no compaction.model override configured", () => {
+    const result = buildEmbeddedCompactionRuntimeContext({
+      workspaceDir: "/tmp/workspace",
+      agentDir: "/tmp/agent",
+      config: {
+        agents: { defaults: { economyModel: "google/gemini-3.5-flash" } },
+      } as OpenClawConfig,
+      provider: "anthropic",
+      modelId: "claude-opus-4-8",
+      authProfileId: "anthropic:p1",
+    });
+    expect(result.provider).toBe("google");
+    expect(result.model).toBe("gemini-3.5-flash");
+    // Auth profile dropped because provider changed
+    expect(result.authProfileId).toBeUndefined();
+  });
+
+  it("prefers explicit compaction.model over economyModel", () => {
+    const result = buildEmbeddedCompactionRuntimeContext({
+      workspaceDir: "/tmp/workspace",
+      agentDir: "/tmp/agent",
+      config: {
+        agents: {
+          defaults: {
+            economyModel: "google/gemini-3.5-flash",
+            compaction: { model: "openai/gpt-5.4-mini" },
+          },
+        },
+      } as OpenClawConfig,
+      provider: "anthropic",
+      modelId: "claude-opus-4-8",
+    });
+    expect(result.provider).toBe("openai");
+    expect(result.model).toBe("gpt-5.4-mini");
+  });
+
   it("uses session model when no compaction.model override configured", () => {
     const result = buildEmbeddedCompactionRuntimeContext({
       workspaceDir: "/tmp/workspace",

@@ -407,7 +407,7 @@ const FEATURES: FeatureEntry[] = [
   },
   {
     id: "feat-update",
-    label: "Update OpenClaw",
+    label: "Update Granted",
     description: "Check your version and install the latest release.",
     keywords: ["update", "upgrade", "version", "new release"],
     icon: "download",

@@ -1,5 +1,6 @@
 import type { ReasoningLevel, ThinkLevel } from "../../auto-reply/thinking.js";
 import type { OpenClawConfig } from "../../config/config.js";
+import { resolveEconomyModelRef } from "../../config/economy-model.js";
 import type { ExecElevatedDefaults } from "../bash-tools.js";
 import type { SkillSnapshot } from "../skills.js";
 
@@ -41,7 +42,11 @@ export function resolveEmbeddedCompactionTarget(params: {
 }): { provider: string | undefined; model: string | undefined; authProfileId: string | undefined } {
   const provider = params.provider?.trim() || params.defaultProvider;
   const model = params.modelId?.trim() || params.defaultModel;
-  const override = params.config?.agents?.defaults?.compaction?.model?.trim();
+  // Explicit compaction.model wins; otherwise summarize with the economy model
+  // (when configured) since compaction is background work.
+  const override =
+    params.config?.agents?.defaults?.compaction?.model?.trim() ||
+    resolveEconomyModelRef(params.config);
   if (!override) {
     return {
       provider,

@@ -1278,16 +1278,30 @@ export async function runEmbeddedAttempt(
 
       // Spend guard: check cumulative cost before each model call and abort if over limit.
       const spendLimitUsd = params.config?.agents?.defaults?.spendLimitUsd ?? 0;
-      if (spendLimitUsd > 0) {
+      const spendLimitsByProvider = params.config?.agents?.defaults?.spendLimitUsdByProvider ?? {};
+      const providerKey = params.provider?.trim().toLowerCase() ?? "";
+      const providerSpendLimitUsd =
+        Object.entries(spendLimitsByProvider).find(
+          ([key]) => key.trim().toLowerCase() === providerKey,
+        )?.[1] ?? 0;
+      if (spendLimitUsd > 0 || providerSpendLimitUsd > 0) {
         const inner = activeSession.agent.streamFn;
         activeSession.agent.streamFn = async (model, context, options) => {
           const summary = await loadCostUsageSummary({ config: params.config });
           const spent = summary.totals.totalCost ?? 0;
-          if (spent >= spendLimitUsd) {
+          if (spendLimitUsd > 0 && spent >= spendLimitUsd) {
             // Spend is cumulative across restarts — only a config change unblocks.
             const reason = `Spend limit reached: $${spent.toFixed(4)} spent of $${spendLimitUsd.toFixed(2)} limit (agents.defaults.spendLimitUsd). ALL model calls are blocked — raise or remove the limit in openclaw.json to continue.`;
             log.error(reason);
             throw new Error(reason);
+          }
+          if (providerSpendLimitUsd > 0) {
+            const providerSpent = summary.providerCosts?.[providerKey] ?? 0;
+            if (providerSpent >= providerSpendLimitUsd) {
+              const reason = `Provider spend limit reached for "${params.provider}": $${providerSpent.toFixed(4)} spent of $${providerSpendLimitUsd.toFixed(2)} limit (agents.defaults.spendLimitUsdByProvider). Calls to this provider are blocked — raise or remove its limit in openclaw.json, or switch models to another provider.`;
+              log.error(reason);
+              throw new Error(reason);
+            }
           }
           return inner(model, context, options);
         };

@@ -1,20 +1,27 @@
 {
-  "name": "openclaw",
+  "name": "granted-ai",
   "version": "2026.4.7",
-  "description": "Multi-channel AI gateway with extensible messaging integrations",
-  "keywords": [],
-  "homepage": "https://github.com/openclaw/openclaw#readme",
+  "description": "Granted — your personal AI that works on your machine with your own API keys: chat, voice, browser, and desktop automation with strict file-access grants and per-key spend limits",
+  "keywords": [
+    "ai",
+    "assistant",
+    "agent",
+    "byok",
+    "automation",
+    "gateway"
+  ],
+  "homepage": "https://github.com/1Dhiraj/granted#readme",
   "bugs": {
-    "url": "https://github.com/openclaw/openclaw/issues"
+    "url": "https://github.com/1Dhiraj/granted/issues"
   },
   "license": "MIT",
-  "author": "",
+  "author": "Granted",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/openclaw/openclaw.git"
+    "url": "git+https://github.com/1Dhiraj/granted.git"
   },
   "bin": {
-    "openclaw": "openclaw.mjs"
+    "granted": "openclaw.mjs"
   },
   "directories": {
     "doc": "docs",

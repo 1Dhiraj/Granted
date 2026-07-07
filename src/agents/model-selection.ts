@@ -1,5 +1,6 @@
 import { resolveThinkingDefaultForModel } from "../auto-reply/thinking.shared.js";
 import type { OpenClawConfig } from "../config/config.js";
+import { resolveEconomyModelRef } from "../config/economy-model.js";
 import {
   resolveAgentModelFallbackValues,
   resolveAgentModelPrimaryValue,
@@ -456,6 +457,9 @@ export function resolveSubagentSpawnModelSelection(params: {
       cfg: params.cfg,
       agentId: params.agentId,
     }) ??
+    // Background sub-agents default to the economy model (when configured) so
+    // spawned work doesn't burn the primary model's budget.
+    normalizeModelSelection(resolveEconomyModelRef(params.cfg)) ??
     normalizeModelSelection(resolveAgentModelPrimaryValue(params.cfg.agents?.defaults?.model)) ??
     `${runtimeDefault.provider}/${runtimeDefault.model}`
   );

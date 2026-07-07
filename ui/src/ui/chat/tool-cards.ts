@@ -51,10 +51,59 @@ export function extractToolCards(message: unknown): ToolCard[] {
   return cards;
 }
 
+type EditDiff = { oldText: string; newText: string };
+
+const DIFF_MAX_LINES = 6;
+
+/** Pull oldText/newText pairs out of edit-tool call args (flat or edits[] shape). */
+function extractEditDiffs(name: string, args: unknown): EditDiff[] {
+  if (name !== "edit") {
+    return [];
+  }
+  const a = args as Record<string, unknown> | null | undefined;
+  if (!a || typeof a !== "object") {
+    return [];
+  }
+  const pairs: EditDiff[] = [];
+  if (Array.isArray(a.edits)) {
+    for (const entry of a.edits) {
+      const e = entry as Record<string, unknown>;
+      if (typeof e?.oldText === "string" && typeof e?.newText === "string") {
+        pairs.push({ oldText: e.oldText, newText: e.newText });
+      }
+    }
+  } else if (typeof a.oldText === "string" && typeof a.newText === "string") {
+    pairs.push({ oldText: a.oldText, newText: a.newText });
+  }
+  return pairs;
+}
+
+function diffLines(text: string, sign: "-" | "+") {
+  const lines = text.split("\n");
+  const shown = lines.slice(0, DIFF_MAX_LINES);
+  const truncated = lines.length > DIFF_MAX_LINES;
+  const color = sign === "-" ? "var(--danger, #f87171)" : "var(--success, #4ade80)";
+  return html`${shown.map(
+    (line) => html`<div style="color:${color}">${sign} ${line}</div>`,
+  )}${truncated ? html`<div class="muted">${sign} … ${lines.length - DIFF_MAX_LINES} more</div>` : nothing}`;
+}
+
+function renderEditDiff(diffs: EditDiff[]) {
+  if (diffs.length === 0) {
+    return nothing;
+  }
+  return html`<div class="chat-tool-card__preview mono" style="white-space:pre-wrap">
+    ${diffs.map(
+      (d) => html`${diffLines(d.oldText, "-")}${diffLines(d.newText, "+")}`,
+    )}
+  </div>`;
+}
+
 export function renderToolCardSidebar(card: ToolCard, onOpenSidebar?: (content: string) => void) {
   const display = resolveToolDisplay({ name: card.name, args: card.args });
   const detail = formatToolDetail(display);
   const hasText = Boolean(card.text?.trim());
+  const editDiffs = card.kind === "call" ? extractEditDiffs(card.name, card.args) : [];
 
   const canClick = Boolean(onOpenSidebar);
   const handleClick = canClick
@@ -106,6 +155,7 @@ export function renderToolCardSidebar(card: ToolCard, onOpenSidebar?: (content: 
           : nothing}
       </div>
       ${detail ? html`<div class="chat-tool-card__detail">${detail}</div>` : nothing}
+      ${renderEditDiff(editDiffs)}
       ${isEmpty ? html` <div class="chat-tool-card__status-text muted">Completed</div> ` : nothing}
       ${showCollapsed
         ? html`<div class="chat-tool-card__preview mono">${getTruncatedPreview(card.text!)}</div>`

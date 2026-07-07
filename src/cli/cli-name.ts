@@ -1,9 +1,10 @@
 import path from "node:path";
 
-export const DEFAULT_CLI_NAME = "openclaw";
+export const DEFAULT_CLI_NAME = "granted";
 
-const KNOWN_CLI_NAMES = new Set([DEFAULT_CLI_NAME]);
-const CLI_PREFIX_RE = /^(?:((?:pnpm|npm|bunx|npx)\s+))?(openclaw)\b/;
+// "openclaw" stays recognized so shims/scripts created before the rebrand keep working.
+const KNOWN_CLI_NAMES = new Set([DEFAULT_CLI_NAME, "openclaw"]);
+const CLI_PREFIX_RE = /^(?:((?:pnpm|npm|bunx|npx)\s+))?(openclaw|granted)\b/;
 
 export function resolveCliName(argv: string[] = process.argv): string {
   const argv1 = argv[1];

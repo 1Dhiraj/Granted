@@ -1,4 +1,5 @@
 import type { OpenClawConfig } from "../../config/config.js";
+import { resolveEconomyModelRef } from "../../config/economy-model.js";
 import type { CronJob } from "../types.js";
 import {
   DEFAULT_MODEL,
@@ -64,7 +65,9 @@ export async function resolveCronModelSelection(
   const subagentModelRaw =
     normalizeModelSelection(params.agentConfigOverride?.subagents?.model) ??
     normalizeModelSelection(params.agentConfigOverride?.model) ??
-    normalizeModelSelection(params.cfg.agents?.defaults?.subagents?.model);
+    normalizeModelSelection(params.cfg.agents?.defaults?.subagents?.model) ??
+    // Isolated cron runs are background work: default to the economy model when set.
+    normalizeModelSelection(resolveEconomyModelRef(params.cfg));
   if (subagentModelRaw) {
     const resolvedSubagent = resolveAllowedModelRef({
       cfg: params.cfgWithAgentDefaults,

@@ -47,6 +47,8 @@ export const AgentDefaultsSchema = z
     systemPromptOverride: z.string().optional(),
     skipBootstrap: z.boolean().optional(),
     spendLimitUsd: z.number().positive().optional(),
+    spendLimitUsdByProvider: z.record(z.string(), z.number().positive()).optional(),
+    economyModel: z.string().optional(),
     contextInjection: z.union([z.literal("always"), z.literal("continuation-skip")]).optional(),
     bootstrapMaxChars: z.number().int().positive().optional(),
     bootstrapTotalMaxChars: z.number().int().positive().optional(),

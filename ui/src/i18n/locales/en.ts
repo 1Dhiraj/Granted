@@ -194,7 +194,7 @@ export const en: TranslationMap = {
     agents:
       "Agents are separate AI workers. Each one can have its own personality, model, tools and files. Select an agent on the left, then use the panels to change what it knows (Files), what it may do (Tools) and which extras it has (Skills). Create more agents for specialised jobs — a researcher, a form-filler, a scheduler.",
     overview:
-      "This is the health page. Green means the gateway (the engine behind everything) is running. From here you can copy connection details, check instances and update OpenClaw. If something feels broken, start here, then check Logs.",
+      "This is the health page. Green means the gateway (the engine behind everything) is running. From here you can copy connection details, check instances and update Granted. If something feels broken, start here, then check Logs.",
     channels:
       "Channels connect your AI to messaging apps. Link WhatsApp by scanning a QR code, or add bot tokens for Telegram, Discord and others. Once linked, you can text your AI from your phone like any contact.",
     instances: "Every app or device talking to your gateway shows up here with a heartbeat. Useful to confirm 'is my phone / browser / node actually connected right now?'",
@@ -275,7 +275,7 @@ export const en: TranslationMap = {
     pairing: {
       hint: "This device needs pairing approval from the gateway host.",
       mobileHint:
-        "On mobile? Copy the full URL (including #token=...) from openclaw dashboard --no-open on your desktop.",
+        "On mobile? Copy the full URL (including #token=...) from granted dashboard --no-open on your desktop.",
     },
     insecure: {
       hint: "This page is HTTP, so the browser blocks device identity. Use HTTPS (Tailscale Serve) or open {url} on the gateway host.",

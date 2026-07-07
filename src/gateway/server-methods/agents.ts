@@ -98,7 +98,14 @@ export const __testing = {
 
 const MEMORY_FILE_NAMES = [DEFAULT_MEMORY_FILENAME, DEFAULT_MEMORY_ALT_FILENAME] as const;
 
-const ALLOWED_FILE_NAMES = new Set<string>([...BOOTSTRAP_FILE_NAMES, ...MEMORY_FILE_NAMES]);
+/** User-facing product files surfaced in the Files panel when present. */
+const PRODUCT_FILE_NAMES = ["FEATURES.md"] as const;
+
+const ALLOWED_FILE_NAMES = new Set<string>([
+  ...BOOTSTRAP_FILE_NAMES,
+  ...MEMORY_FILE_NAMES,
+  ...PRODUCT_FILE_NAMES,
+]);
 
 function resolveAgentWorkspaceFileOrRespondError(
   params: Record<string, unknown>,
@@ -376,6 +383,25 @@ async function listAgentFiles(workspaceDir: string, options?: { hideBootstrap?: 
         name: DEFAULT_MEMORY_FILENAME,
         path: primaryResolved.requestPath,
         missing: true,
+      });
+    }
+  }
+
+  for (const name of PRODUCT_FILE_NAMES) {
+    const resolved = await resolveAgentWorkspaceFilePath({
+      workspaceDir,
+      name,
+      allowMissing: true,
+    });
+    const meta = resolved.kind === "ready" ? await statFileSafely(resolved.ioPath) : null;
+    // Product files are optional: only listed once the agent has created them.
+    if (meta) {
+      files.push({
+        name,
+        path: resolved.requestPath,
+        missing: false,
+        size: meta.size,
+        updatedAtMs: meta.updatedAtMs,
       });
     }
   }

@@ -239,7 +239,7 @@ export const uk: TranslationMap = {
     pairing: {
       hint: "Цей пристрій потребує схвалення спарювання від хоста шлюзу.",
       mobileHint:
-        "На мобільному? Скопіюйте повний URL (включно з #token=...) з openclaw dashboard --no-open на вашому комп’ютері.",
+        "На мобільному? Скопіюйте повний URL (включно з #token=...) з granted dashboard --no-open на вашому комп’ютері.",
     },
     insecure: {
       hint: "Ця сторінка використовує HTTP, тому браузер блокує ідентичність пристрою. Використовуйте HTTPS (Tailscale Serve) або відкрийте {url} на хості шлюзу.",

@@ -238,7 +238,7 @@ export const pl: TranslationMap = {
     pairing: {
       hint: "To urządzenie wymaga zatwierdzenia parowania przez host Gateway.",
       mobileHint:
-        "Na urządzeniu mobilnym? Skopiuj pełny URL (w tym #token=...) z openclaw dashboard --no-open na komputerze.",
+        "Na urządzeniu mobilnym? Skopiuj pełny URL (w tym #token=...) z granted dashboard --no-open na komputerze.",
     },
     insecure: {
       hint: "Ta strona używa HTTP, więc przeglądarka blokuje tożsamość urządzenia. Użyj HTTPS (Tailscale Serve) lub otwórz {url} na hoście Gateway.",

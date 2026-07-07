@@ -297,6 +297,12 @@ export type FsToolsConfig = {
    * Default: false (unrestricted, matches legacy behavior).
    */
   workspaceOnly?: boolean;
+  /**
+   * Additional directories the filesystem tools may access when workspaceOnly is true.
+   * Absolute paths (or ~/ for home). Everything outside the workspace and this list is denied.
+   * Ignored when workspaceOnly is false (access is already unrestricted).
+   */
+  allowPaths?: string[];
 };
 
 export type AgentToolsConfig = {

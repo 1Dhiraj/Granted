@@ -3184,6 +3184,32 @@ export const GENERATED_BASE_CONFIG_SCHEMA: BaseConfigSchemaResponse = {
               skipBootstrap: {
                 type: "boolean",
               },
+              spendLimitUsd: {
+                type: "number",
+                exclusiveMinimum: 0,
+                title: "Spend Limit (USD)",
+                description:
+                  "Hard spend cap in USD across all sessions. All model calls are blocked once cumulative cost reaches this limit; raise or remove it to continue.",
+              },
+              spendLimitUsdByProvider: {
+                type: "object",
+                propertyNames: {
+                  type: "string",
+                },
+                additionalProperties: {
+                  type: "number",
+                  exclusiveMinimum: 0,
+                },
+                title: "Per-Provider Spend Limits (USD)",
+                description:
+                  'Per-provider spend caps in USD keyed by provider id (e.g. {"anthropic": 10, "openai": 5}). Calls to a provider stop once its cumulative cost reaches the cap, protecting each API key\'s budget; other providers keep working.',
+              },
+              economyModel: {
+                type: "string",
+                title: "Economy Model (Background Roles)",
+                description:
+                  'Cheap provider/model ref (e.g. "anthropic/claude-haiku-4-5") used by default for background roles: heartbeats, spawned sub-agents, isolated cron runs, and compaction. Explicit per-role model settings win. Leave unset to use the primary model everywhere.',
+              },
               contextInjection: {
                 anyOf: [
                   {
@@ -6854,6 +6880,12 @@ export const GENERATED_BASE_CONFIG_SCHEMA: BaseConfigSchemaResponse = {
                       properties: {
                         workspaceOnly: {
                           type: "boolean",
+                        },
+                        allowPaths: {
+                          type: "array",
+                          items: {
+                            type: "string",
+                          },
                         },
                       },
                       additionalProperties: false,
@@ -17071,6 +17103,15 @@ export const GENERATED_BASE_CONFIG_SCHEMA: BaseConfigSchemaResponse = {
                 description:
                   "Restrict filesystem tools (read/write/edit/apply_patch) to the workspace directory (default: false).",
               },
+              allowPaths: {
+                type: "array",
+                items: {
+                  type: "string",
+                },
+                title: "Extra Allowed FS Paths",
+                description:
+                  "Extra directories (absolute paths, ~/ allowed) the filesystem tools may access when workspaceOnly is true. Everything outside the workspace and this list is denied. Ignored when workspaceOnly is false.",
+              },
             },
             additionalProperties: false,
           },
@@ -23504,6 +23545,11 @@ export const GENERATED_BASE_CONFIG_SCHEMA: BaseConfigSchemaResponse = {
       help: "Restrict filesystem tools (read/write/edit/apply_patch) to the workspace directory (default: false).",
       tags: ["tools"],
     },
+    "tools.fs.allowPaths": {
+      label: "Extra Allowed FS Paths",
+      help: "Extra directories (absolute paths, ~/ allowed) the filesystem tools may access when workspaceOnly is true. Everything outside the workspace and this list is denied. Ignored when workspaceOnly is false.",
+      tags: ["access", "storage", "tools"],
+    },
     "tools.sessions.visibility": {
       label: "Session Tools Visibility",
       help: 'Controls which sessions can be targeted by sessions_list/sessions_history/sessions_send. ("tree" default = current session + spawned subagent sessions; "self" = only current; "agent" = any session in the current agent id; "all" = any session; cross-agent still requires tools.agentToAgent).',
@@ -24196,6 +24242,21 @@ export const GENERATED_BASE_CONFIG_SCHEMA: BaseConfigSchemaResponse = {
     "agents.defaults.skills": {
       label: "Skills",
       help: "Optional default skill allowlist inherited by agents that omit agents.list[].skills. Omit for unrestricted skills, set [] to give inheriting agents no skills, and remember explicit agents.list[].skills replaces this default instead of merging with it.",
+      tags: ["advanced"],
+    },
+    "agents.defaults.spendLimitUsd": {
+      label: "Spend Limit (USD)",
+      help: "Hard spend cap in USD across all sessions. All model calls are blocked once cumulative cost reaches this limit; raise or remove it to continue.",
+      tags: ["performance"],
+    },
+    "agents.defaults.spendLimitUsdByProvider": {
+      label: "Per-Provider Spend Limits (USD)",
+      help: 'Per-provider spend caps in USD keyed by provider id (e.g. {"anthropic": 10, "openai": 5}). Calls to a provider stop once its cumulative cost reaches the cap, protecting each API key\'s budget; other providers keep working.',
+      tags: ["performance", "storage"],
+    },
+    "agents.defaults.economyModel": {
+      label: "Economy Model (Background Roles)",
+      help: 'Cheap provider/model ref (e.g. "anthropic/claude-haiku-4-5") used by default for background roles: heartbeats, spawned sub-agents, isolated cron runs, and compaction. Explicit per-role model settings win. Leave unset to use the primary model everywhere.',
       tags: ["advanced"],
     },
     "agents.defaults.workspace": {

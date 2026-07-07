@@ -374,6 +374,7 @@ export async function loadCostUsageSummary(params?: {
 
   const dailyMap = new Map<string, CostUsageTotals>();
   const totals = emptyTotals();
+  const providerCosts: Record<string, number> = {};
 
   const sessionsDir = resolveSessionTranscriptsDirForAgent(params?.agentId);
   const entries = await fs.promises.readdir(sessionsDir, { withFileTypes: true }).catch(() => []);
@@ -421,6 +422,14 @@ export async function loadCostUsageSummary(params?: {
         } else {
           applyCostTotal(totals, entry.costTotal);
         }
+
+        const entryCost = entry.costBreakdown?.total ?? entry.costTotal;
+        if (entry.provider && entryCost !== undefined) {
+          const providerKey = entry.provider.trim().toLowerCase();
+          if (providerKey) {
+            providerCosts[providerKey] = (providerCosts[providerKey] ?? 0) + entryCost;
+          }
+        }
       },
     });
   }
@@ -437,6 +446,7 @@ export async function loadCostUsageSummary(params?: {
     days,
     daily,
     totals,
+    providerCosts,
   };
 }
 

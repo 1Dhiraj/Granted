@@ -162,6 +162,18 @@ export type AgentDefaultsConfig = {
   /** Hard spend cap in USD across all sessions. Model calls are blocked once this is reached. */
   spendLimitUsd?: number;
   /**
+   * Per-provider spend caps in USD (keyed by provider id, e.g. "anthropic", "openai").
+   * Calls to a provider are blocked once its cumulative cost reaches the cap, so one
+   * API key can never be drained past the budget its owner set. Other providers keep working.
+   */
+  spendLimitUsdByProvider?: Record<string, number>;
+  /**
+   * Cheap model (provider/model ref) for background/low-stakes roles. When set, heartbeat
+   * runs, spawned sub-agents, and compaction default to this model instead of the primary
+   * model, so routine work never burns the expensive key. Explicit per-role models win.
+   */
+  economyModel?: string;
+  /**
    * Controls when workspace bootstrap files (AGENTS.md, SOUL.md, etc.) are
    * injected into the system prompt:
    * - always: inject on every turn (default)

@@ -668,6 +668,8 @@ export const FIELD_HELP: Record<string, string> = {
     "Optional thread/topic target for channels that support threaded delivery of forwarded plugin approvals.",
   "tools.fs.workspaceOnly":
     "Restrict filesystem tools (read/write/edit/apply_patch) to the workspace directory (default: false).",
+  "tools.fs.allowPaths":
+    "Extra directories (absolute paths, ~/ allowed) the filesystem tools may access when workspaceOnly is true. Everything outside the workspace and this list is denied. Ignored when workspaceOnly is false.",
   "tools.sessions.visibility":
     'Controls which sessions can be targeted by sessions_list/sessions_history/sessions_send. ("tree" default = current session + spawned subagent sessions; "self" = only current; "agent" = any session in the current agent id; "all" = any session; cross-agent still requires tools.agentToAgent).',
   "tools.message.allowCrossContextSend":
@@ -826,6 +828,12 @@ export const FIELD_HELP: Record<string, string> = {
     "Maximum same-provider auth-profile rotations allowed for rate-limit errors before switching to model fallback (default: 1).",
   "agents.defaults.workspace":
     "Default workspace path exposed to agent runtime tools for filesystem context and repo-aware behavior. Set this explicitly when running from wrappers so path resolution stays deterministic.",
+  "agents.defaults.spendLimitUsd":
+    "Hard spend cap in USD across all sessions. All model calls are blocked once cumulative cost reaches this limit; raise or remove it to continue.",
+  "agents.defaults.spendLimitUsdByProvider":
+    'Per-provider spend caps in USD keyed by provider id (e.g. {"anthropic": 10, "openai": 5}). Calls to a provider stop once its cumulative cost reaches the cap, protecting each API key\'s budget; other providers keep working.',
+  "agents.defaults.economyModel":
+    'Cheap provider/model ref (e.g. "anthropic/claude-haiku-4-5") used by default for background roles: heartbeats, spawned sub-agents, isolated cron runs, and compaction. Explicit per-role model settings win. Leave unset to use the primary model everywhere.',
   "agents.defaults.contextInjection":
     'Controls when workspace bootstrap files are injected into the system prompt: "always" (default) or "continuation-skip" for safe continuation turns after a completed assistant response.',
   "agents.defaults.bootstrapMaxChars":

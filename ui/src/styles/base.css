@@ -1,68 +1,68 @@
 :root {
   /*
-   * Minimal neutral palette — true-gray surfaces, one calm blue accent.
+   * Granted identity — cool graphite surfaces, one emerald accent.
    * Designed for clarity: high-contrast text, restrained colour, the accent
    * used only on interactive elements (buttons, links, active, focus).
    *
-   * WCAG 2.1 AA audit (bg = #0d0d0d, relative luminance ≈ 0.006):
-   *   --text #e3e3e3 on bg: ≈ 15.6:1  AAA ✓
-   *   --muted #a0a0a0 on bg: ≈ 7.0:1  AAA ✓
-   *   --accent #5e9cd3 on bg: ≈ 7.4:1  AAA large / AA text ✓
-   *   --primary-foreground #0d0d0d on #5e9cd3 button: ≈ 7.4:1  ✓
+   * WCAG 2.1 AA audit (bg = #0c0f12, relative luminance ≈ 0.007):
+   *   --text #e6e9ed on bg: ≈ 15.5:1  AAA ✓
+   *   --muted #98a2ad on bg: ≈ 6.7:1  AA ✓
+   *   --accent #34d399 on bg: ≈ 10.0:1  AAA ✓
+   *   --primary-foreground #06231a on #34d399 button: ≈ 8.6:1  ✓
    */
 
-  /* Background - Neutral near-black with layered depth */
-  --bg: #0d0d0d;
-  --bg-accent: #121212;
-  --bg-elevated: #181818;
-  --bg-hover: #1f1f1f;
-  --bg-muted: #1f1f1f;
+  /* Background - Cool graphite with layered depth */
+  --bg: #0c0f12;
+  --bg-accent: #10141a;
+  --bg-elevated: #151a21;
+  --bg-hover: #1b212a;
+  --bg-muted: #1b212a;
 
   /* Card / Surface - Clear hierarchy between levels */
-  --card: #141414;
-  --card-foreground: #ededed;
+  --card: #11151b;
+  --card-foreground: #e9ecf0;
   --card-highlight: rgba(255, 255, 255, 0.04);
-  --popover: #181818;
-  --popover-foreground: #ededed;
+  --popover: #151a21;
+  --popover-foreground: #e9ecf0;
 
   /* Panel */
-  --panel: #0d0d0d;
-  --panel-strong: #181818;
-  --panel-hover: #1f1f1f;
-  --chrome: rgba(13, 13, 13, 0.96);
-  --chrome-strong: rgba(13, 13, 13, 0.98);
+  --panel: #0c0f12;
+  --panel-strong: #151a21;
+  --panel-hover: #1b212a;
+  --chrome: rgba(12, 15, 18, 0.96);
+  --chrome-strong: rgba(12, 15, 18, 0.98);
 
-  /* Text - High contrast, neutral */
-  --text: #e3e3e3;
+  /* Text - High contrast, cool neutral */
+  --text: #e6e9ed;
   --text-strong: #ffffff;
-  --chat-text: #e3e3e3;
-  --muted: #a0a0a0;
-  --muted-strong: #8a8a8a;
-  --muted-foreground: #a0a0a0;
+  --chat-text: #e6e9ed;
+  --muted: #98a2ad;
+  --muted-strong: #8a93a0;
+  --muted-foreground: #98a2ad;
 
-  /* Border - Whisper-thin, neutral */
-  --border: #242424;
-  --border-strong: #303030;
-  --border-hover: #3d3d3d;
-  --input: #242424;
-  --ring: #5e9cd3;
+  /* Border - Whisper-thin, cool */
+  --border: #222933;
+  --border-strong: #2d3642;
+  --border-hover: #3a4552;
+  --input: #222933;
+  --ring: #34d399;
 
-  /* Accent - Calm professional blue (interactive elements only) */
-  --accent: #5e9cd3;
-  --accent-hover: #79afdf;
-  --accent-muted: #5e9cd3;
-  --accent-subtle: rgba(94, 156, 211, 0.12);
-  --accent-foreground: #0d0d0d;
-  --accent-glow: rgba(94, 156, 211, 0.18);
-  --primary: #5e9cd3;
-  --primary-foreground: #0d0d0d;
+  /* Accent - Emerald ("access granted"; interactive elements only) */
+  --accent: #34d399;
+  --accent-hover: #55e0ac;
+  --accent-muted: #34d399;
+  --accent-subtle: rgba(52, 211, 153, 0.12);
+  --accent-foreground: #06231a;
+  --accent-glow: rgba(52, 211, 153, 0.14);
+  --primary: #34d399;
+  --primary-foreground: #06231a;
 
   /* Secondary - Neutral grey (no second hue, keeps it minimal) */
-  --secondary: #141414;
-  --secondary-foreground: #ededed;
-  --accent-2: #8a8a8a;
-  --accent-2-muted: rgba(138, 138, 138, 0.7);
-  --accent-2-subtle: rgba(138, 138, 138, 0.12);
+  --secondary: #11151b;
+  --secondary-foreground: #e9ecf0;
+  --accent-2: #8a93a0;
+  --accent-2-muted: rgba(138, 147, 160, 0.7);
+  --accent-2-subtle: rgba(138, 147, 160, 0.12);
 
   /* Semantic */
   --ok: #22c55e;
@@ -79,9 +79,9 @@
   --info: #3b82f6;
 
   /* Focus */
-  --focus: rgba(94, 156, 211, 0.2);
+  --focus: rgba(52, 211, 153, 0.2);
   --focus-ring: 0 0 0 2px var(--bg), 0 0 0 3px color-mix(in srgb, var(--ring) 80%, transparent);
-  --focus-glow: 0 0 0 2px var(--bg), 0 0 0 3px var(--ring), 0 0 16px var(--accent-glow);
+  --focus-glow: 0 0 0 2px var(--bg), 0 0 0 3px var(--ring), 0 0 12px var(--accent-glow);
 
   /* Grid */
   --grid-line: rgba(255, 255, 255, 0.03);
@@ -154,26 +154,26 @@
   --border-strong: #d1d1d6;
   --border-hover: #aeaeb2;
   --input: #e5e5ea;
-  --ring: #006d96;
+  --ring: #047857;
 
   /*
-   * Accent — deep cyan on white: #006d96 ≈ 5.4:1 AA text ✓,
-   * #ffffff on #006d96 button ≈ 5.8:1 AA ✓
+   * Accent — deep emerald on white: #047857 ≈ 5.8:1 AA text ✓,
+   * #ffffff on #047857 button ≈ 5.8:1 AA ✓
    */
-  --accent: #006d96;
-  --accent-hover: #005c80;
-  --accent-muted: #006d96;
-  --accent-subtle: rgba(0, 109, 150, 0.08);
+  --accent: #047857;
+  --accent-hover: #065f46;
+  --accent-muted: #047857;
+  --accent-subtle: rgba(4, 120, 87, 0.08);
   --accent-foreground: #ffffff;
-  --accent-glow: rgba(0, 109, 150, 0.1);
-  --primary: #006d96;
+  --accent-glow: rgba(4, 120, 87, 0.1);
+  --primary: #047857;
   --primary-foreground: #ffffff;
 
   --secondary: #f1f3f5;
   --secondary-foreground: #3c3c43;
-  --accent-2: #6d28d9;
-  --accent-2-muted: rgba(109, 40, 217, 0.75);
-  --accent-2-subtle: rgba(109, 40, 217, 0.08);
+  --accent-2: #475569;
+  --accent-2-muted: rgba(71, 85, 105, 0.75);
+  --accent-2-subtle: rgba(71, 85, 105, 0.08);
 
   --ok: #15803d;
   --ok-muted: rgba(21, 128, 61, 0.75);
@@ -188,7 +188,7 @@
   --danger-subtle: rgba(220, 38, 38, 0.08);
   --info: #2563eb;
 
-  --focus: rgba(0, 109, 150, 0.15);
+  --focus: rgba(4, 120, 87, 0.15);
   --focus-ring: 0 0 0 2px var(--bg), 0 0 0 3px color-mix(in srgb, var(--ring) 70%, transparent);
   --focus-glow: 0 0 0 2px var(--bg), 0 0 0 3px var(--ring), 0 0 12px var(--accent-glow);
 

@@ -236,7 +236,7 @@ export const ko: TranslationMap = {
     pairing: {
       hint: "이 디바이스는 gateway host의 페어링 승인이 필요합니다.",
       mobileHint:
-        "모바일에서 사용 중이신가요? 데스크톱에서 openclaw dashboard --no-open으로 전체 URL(#token=... 포함)을 복사하세요.",
+        "모바일에서 사용 중이신가요? 데스크톱에서 granted dashboard --no-open으로 전체 URL(#token=... 포함)을 복사하세요.",
     },
     insecure: {
       hint: "이 페이지는 HTTP이므로 브라우저가 디바이스 ID를 차단합니다. HTTPS(Tailscale Serve)를 사용하거나 gateway host에서 {url}을 여세요.",

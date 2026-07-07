@@ -240,7 +240,7 @@ export const tr: TranslationMap = {
     pairing: {
       hint: "Bu cihazın Gateway ana bilgisayarından eşleştirme onayı alması gerekiyor.",
       mobileHint:
-        "Mobilde misiniz? Masaüstünüzde openclaw dashboard --no-open komutundan tam URL'yi (#token=... dahil) kopyalayın.",
+        "Mobilde misiniz? Masaüstünüzde granted dashboard --no-open komutundan tam URL'yi (#token=... dahil) kopyalayın.",
     },
     insecure: {
       hint: "Bu sayfa HTTP olduğu için tarayıcı cihaz kimliğini engelliyor. HTTPS (Tailscale Serve) kullanın veya Gateway ana bilgisayarında {url} adresini açın.",

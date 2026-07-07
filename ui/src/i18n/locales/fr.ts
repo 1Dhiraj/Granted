@@ -239,7 +239,7 @@ export const fr: TranslationMap = {
     pairing: {
       hint: "Cet appareil nécessite une approbation d’appairage de l’hôte Gateway.",
       mobileHint:
-        "Sur mobile ? Copiez l’URL complète (y compris #token=...) depuis openclaw dashboard --no-open sur votre ordinateur.",
+        "Sur mobile ? Copiez l’URL complète (y compris #token=...) depuis granted dashboard --no-open sur votre ordinateur.",
     },
     insecure: {
       hint: "Cette page utilise HTTP, le navigateur bloque donc l’identité de l’appareil. Utilisez HTTPS (Tailscale Serve) ou ouvrez {url} sur l’hôte Gateway.",

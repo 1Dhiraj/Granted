@@ -44,7 +44,6 @@ import {
   createSandboxedWriteTool,
   getToolParamsRecord,
   wrapToolMemoryFlushAppendOnlyWrite,
-  wrapToolWorkspaceRootGuard,
   wrapToolWorkspaceRootGuardWithOptions,
   wrapToolParamValidation,
 } from "./pi-tools.read.js";
@@ -396,6 +395,8 @@ export function createOpenClawCodingTools(options?: {
   const fsConfig = resolveToolFsConfig({ cfg: options?.config, agentId });
   const fsPolicy = createToolFsPolicy({
     workspaceOnly: isMemoryFlushRun || fsConfig.workspaceOnly,
+    // Memory flush runs stay strictly workspace-contained regardless of grants.
+    allowPaths: isMemoryFlushRun ? undefined : fsConfig.allowPaths,
   });
   const sandboxRoot = sandbox?.workspaceDir;
   const sandboxFsBridge = sandbox?.fsBridge;
@@ -443,7 +444,13 @@ export function createOpenClawCodingTools(options?: {
         imageSanitization,
         workspaceRoot,
       });
-      return [workspaceOnly ? wrapToolWorkspaceRootGuard(wrapped, workspaceRoot) : wrapped];
+      return [
+        workspaceOnly
+          ? wrapToolWorkspaceRootGuardWithOptions(wrapped, workspaceRoot, {
+              allowPaths: fsPolicy.allowPaths,
+            })
+          : wrapped,
+      ];
     }
     if (tool.name === "bash" || tool.name === execToolName) {
       return [];
@@ -452,15 +459,33 @@ export function createOpenClawCodingTools(options?: {
       if (sandboxRoot) {
         return [];
       }
-      const wrapped = createHostWorkspaceWriteTool(workspaceRoot, { workspaceOnly });
-      return [workspaceOnly ? wrapToolWorkspaceRootGuard(wrapped, workspaceRoot) : wrapped];
+      const wrapped = createHostWorkspaceWriteTool(workspaceRoot, {
+        workspaceOnly,
+        allowPaths: fsPolicy.allowPaths,
+      });
+      return [
+        workspaceOnly
+          ? wrapToolWorkspaceRootGuardWithOptions(wrapped, workspaceRoot, {
+              allowPaths: fsPolicy.allowPaths,
+            })
+          : wrapped,
+      ];
     }
     if (tool.name === "edit") {
       if (sandboxRoot) {
         return [];
       }
-      const wrapped = createHostWorkspaceEditTool(workspaceRoot, { workspaceOnly });
-      return [workspaceOnly ? wrapToolWorkspaceRootGuard(wrapped, workspaceRoot) : wrapped];
+      const wrapped = createHostWorkspaceEditTool(workspaceRoot, {
+        workspaceOnly,
+        allowPaths: fsPolicy.allowPaths,
+      });
+      return [
+        workspaceOnly
+          ? wrapToolWorkspaceRootGuardWithOptions(wrapped, workspaceRoot, {
+              allowPaths: fsPolicy.allowPaths,
+            })
+          : wrapped,
+      ];
     }
     return [tool];
   });

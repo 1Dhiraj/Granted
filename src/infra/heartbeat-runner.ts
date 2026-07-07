@@ -29,6 +29,7 @@ import { getChannelPlugin } from "../channels/plugins/index.js";
 import type { ChannelHeartbeatDeps } from "../channels/plugins/types.js";
 import type { OpenClawConfig } from "../config/config.js";
 import { loadConfig } from "../config/config.js";
+import { resolveEconomyModelRef } from "../config/economy-model.js";
 import {
   canonicalizeMainSessionAlias,
   resolveAgentMainSessionKey,
@@ -822,7 +823,10 @@ export async function runHeartbeatOnce(opts: {
   };
 
   try {
-    const heartbeatModelOverride = normalizeOptionalString(heartbeat?.model);
+    // Explicit heartbeat.model wins; otherwise fall back to the configured economy
+    // model so background heartbeats never burn the expensive primary key.
+    const heartbeatModelOverride =
+      normalizeOptionalString(heartbeat?.model) ?? resolveEconomyModelRef(cfg);
     const suppressToolErrorWarnings = heartbeat?.suppressToolErrorWarnings === true;
     const bootstrapContextMode: "lightweight" | undefined =
       heartbeat?.lightContext === true ? "lightweight" : undefined;

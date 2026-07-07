@@ -121,7 +121,6 @@ import {
   normalizeOptionalString,
   normalizeStringifiedOptionalString,
 } from "./string-coerce.ts";
-import { agentLogoUrl } from "./views/agents-utils.ts";
 import {
   resolveAgentConfig,
   resolveConfiguredCronModelSuggestions,
@@ -558,14 +557,10 @@ export function renderApp(state: AppViewState) {
                 ${navCollapsed
                   ? nothing
                   : html`
-                      <img
-                        class="sidebar-brand__logo"
-                        src="${agentLogoUrl(basePath)}"
-                        alt="OpenClaw"
-                      />
+                      <span class="sidebar-brand__mark" aria-hidden="true">G</span>
                       <span class="sidebar-brand__copy">
+                        <span class="sidebar-brand__title">Granted</span>
                         <span class="sidebar-brand__eyebrow">${t("nav.control")}</span>
-                        <span class="sidebar-brand__title">OpenClaw</span>
                       </span>
                     `}
               </div>
