@@ -6,6 +6,7 @@ Files:
 
 - `scenarios.md` - canonical QA scenario pack, kickoff mission, and operator identity.
 - `frontier-harness-plan.md` - big-model bakeoff and tuning loop for harness work.
+- `capability-suite.md` - manual "can it do anything?" scorecard across all effectors (shell, web, browser, channels, media, cron, desktop, phone, memory, safety); failures feed the roadmap.
 
 Key workflow:
 
