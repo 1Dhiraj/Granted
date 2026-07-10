@@ -153,6 +153,7 @@ extensions/qa-lab/web/dist/
 
 # Local notes / secrets scratch (never commit)
 zzz*
+/notes/local/
 
 # Local test/debug artifacts (session logs, screenshots, scratch output)
 /gateway*.log
