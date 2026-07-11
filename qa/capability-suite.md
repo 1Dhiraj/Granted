@@ -104,6 +104,31 @@ Rules:
 | Date | Runner | Model | PASS | FAIL | BLOCKED | Score | Notes |
 |---|---|---|---|---|---|---|---|
 | 2026-07-11 | Claude (CLI, gateway local) | google/gemini-2.5-flash | 10 | 4 | 13 | **71%** (10/14 attempted) | first baseline run; 8 tasks not yet attempted |
+| 2026-07-11 (retest) | Claude (CLI, gateway local) | google/gemini-2.5-flash | 13 | 1 | 13 | **93%** (13/14 attempted) | F1/F3/F4 flipped to PASS after fixes; F2 pending (daily quota) |
+
+## Retest 2026-07-11 (F-section, after defect fixes)
+
+- **F1 PASS**: `cron add` (1-min interval, isolated agentTurn, exec tool) created
+  cleanly; job fired on schedule and the agent wrote the proof file to disk
+  (verified content + timestamp). Later fires hit free-tier daily quota — errors
+  now precise per-model instead of "unknown error".
+- **F3 PASS**: `cron list` accurate; `cron rm <id>` removed the job; list empty after.
+- **F4 PASS**: full `gateway stop` + `gateway run` cycle; state (sessions, cron
+  store, auth profiles) survived restart. (`gateway restart` WS method fixed earlier.)
+- **F2 pending**: happy path still unverified — Google daily quota exhausted
+  (resets midnight PT); false-success announce fix was verified separately.
+- **Fallback chain VERIFIED**: google/gemini-2.5-flash → gemini-2.0-flash →
+  groq/llama-3.3-70b-versatile walked in order with per-model error detail.
+- **New defect (root cause of original F1/F2)**: sessions can carry a stale
+  model override pointing at dead `gemini-2.5-flash-lite`; its 404 poisons the
+  provider into cooldown for all models. Cleared via `gateway call
+  sessions.patch`. TODO: purge/alias dead catalog models on load and treat
+  model-404 as non-cooldown.
+- **New defect**: `granted <cmd> <sub> --help` prints the parent help, not the
+  subcommand's (commander wiring); `cron help add` works.
+- **Prompt budget**: cron tool description cut 3.7K→1K chars. Remaining to fit
+  Groq free 12K TPM: message tool schema (5.6K), workspace bootstrap files
+  (13.8K), media-gen tool schemas when providers unconfigured (~5K).
 
 ## Baseline run 2026-07-11 (details)
 
