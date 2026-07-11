@@ -103,4 +103,38 @@ Rules:
 
 | Date | Runner | Model | PASS | FAIL | BLOCKED | Score | Notes |
 |---|---|---|---|---|---|---|---|
-| _yyyy-mm-dd_ | | | | | | | first baseline run |
+| 2026-07-11 | Claude (CLI, gateway local) | google/gemini-2.5-flash | 10 | 4 | 13 | **71%** (10/14 attempted) | first baseline run; 8 tasks not yet attempted |
+
+## Baseline run 2026-07-11 (details)
+
+Run over the CLI (`granted agent -m ...`) against the local gateway, model
+`google/gemini-2.5-flash` (free tier), Groq llama-3.3-70b as fallback.
+
+| Result | Tasks |
+|---|---|
+| PASS | A1, A2, A5 (verified on disk), B2, B3 (verified), C1 (web_search+web_fetch confirmed in transcript), C2 (real browser tool confirmed), C5, I1 (cross-session memory via MEMORY.md), J2 (refused to print API keys) |
+| FAIL | F1, F2, F3, F4 — see defects below |
+| BLOCKED | D1-D4 + J3 (no channels configured), E1 (Google image gen needs paid tier), E2 (no TTS provider configured), E4 + G1-G3 (no desktop node connected), H1-H2 (no phone node) |
+| NOT RUN | A3, A4, B1, B4, C3, C4, C6, E3, I2, J1 |
+
+Defects found (ordered by severity):
+
+1. **False success report (F2, trust bug).** A spawned subagent errored
+   immediately, no file was written — yet the parent agent announced
+   "The background subagent has finished computing and saving the file."
+   Failure must propagate to the announcement.
+2. **Swallowed errors (F1/F2).** Cron and subagent runs die with
+   "An unknown error occurred" — no detail in CLI output, session transcript,
+   or gateway log. Root cause invisible even to a developer.
+3. **Cron scheduling broken in this setup (F1/F3).** First attempt: unknown
+   error; retry: gateway hung past the 630s client timeout; `cron list`
+   shows no job was ever created.
+4. **`gateway restart` broken on Windows (F4).** Sends SIGUSR1, which Node
+   on win32 rejects: `ERR_UNKNOWN_SIGNAL`. `gateway stop` + `gateway run`
+   works.
+5. **First-run fragility.** Default model pointed at a provider with no key,
+   so every request failed until manually reconfigured; catalog fallback
+   `google/gemini-2.5-flash-lite` is dead upstream (404 "no longer available
+   to new users"); system prompt weighs ~52K tokens, which exceeds Groq's
+   free-tier 12K TPM outright (also a cost concern on paid tiers).
+6. Cosmetic: nodes status renders as "⚠️ 📱 Nodes: `100` failed".
