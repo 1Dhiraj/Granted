@@ -1027,8 +1027,9 @@ describe("createOllamaStreamFn streaming events", () => {
         // The stream should produce a done event with no text payload.
         const done = events.find((e) => e.type === "done");
         expect(done).toBeDefined();
-        const textContent = done?.message?.content?.filter((c: { type: string }) => c.type === "text") ?? [];
-        const visibleText = textContent.map((c: { text?: string }) => c.text ?? "").join("");
+        const visibleText = (done?.message?.content ?? [])
+          .map((c) => (c.type === "text" ? c.text : ""))
+          .join("");
         expect(visibleText.includes("<|im_start|>")).toBe(false);
       });
     });

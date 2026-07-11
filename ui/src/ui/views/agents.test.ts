@@ -117,6 +117,18 @@ function createProps(overrides: Partial<AgentsProps> = {}): AgentsProps {
     onAgentSkillsClear: () => undefined,
     onAgentSkillsDisableAll: () => undefined,
     onSetDefault: () => undefined,
+    agentJobs: { loading: false, error: null, result: null },
+    agentWorkingIds: [],
+    onJobsRefresh: () => undefined,
+    onJobResume: () => undefined,
+    create: { open: false, name: "", purpose: "", tools: [], model: "", busy: false, error: null },
+    onCreateOpen: () => undefined,
+    onCreateCancel: () => undefined,
+    onCreateNameChange: () => undefined,
+    onCreatePurposeChange: () => undefined,
+    onCreateModelChange: () => undefined,
+    onCreateToolToggle: () => undefined,
+    onCreateSubmit: () => undefined,
     ...overrides,
   };
 }

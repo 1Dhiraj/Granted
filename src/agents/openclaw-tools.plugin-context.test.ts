@@ -26,13 +26,13 @@ describe("openclaw plugin tool context", () => {
     const result = resolveOpenClawPluginToolInputs({
       options: {
         config: {} as never,
-        fsPolicy: { workspaceOnly: true },
+        fsPolicy: { workspaceOnly: true, allowPaths: [] },
       },
     });
 
     expect(result.context).toEqual(
       expect.objectContaining({
-        fsPolicy: { workspaceOnly: true },
+        fsPolicy: { workspaceOnly: true, allowPaths: [] },
       }),
     );
   });
