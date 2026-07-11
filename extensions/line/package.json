@@ -6,7 +6,7 @@
   "type": "module",
   "devDependencies": {
     "@openclaw/plugin-sdk": "workspace:*",
-    "openclaw": "workspace:*"
+    "openclaw": "workspace:granted-ai@*"
   },
   "peerDependencies": {
     "openclaw": ">=2026.4.7"

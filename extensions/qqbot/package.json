@@ -12,7 +12,7 @@
   "devDependencies": {
     "@openclaw/plugin-sdk": "workspace:*",
     "@types/ws": "^8.18.1",
-    "openclaw": "workspace:*"
+    "openclaw": "workspace:granted-ai@*"
   },
   "peerDependencies": {
     "openclaw": ">=2026.4.7"
