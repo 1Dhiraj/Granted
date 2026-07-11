@@ -1438,6 +1438,9 @@
           "strip-ansi": "^7.2.0"
         }
       }
+    },
+    "patchedDependencies": {
+      "@mariozechner/pi-ai": "patches/@mariozechner__pi-ai.patch"
     }
   }
 }

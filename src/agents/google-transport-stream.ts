@@ -728,6 +728,9 @@ export function createGoogleGenerativeAiTransportStreamFn(): StreamFn {
           }
           if (typeof candidate?.finishReason === "string") {
             output.stopReason = mapStopReasonString(candidate.finishReason);
+            if (output.stopReason === "error") {
+              output.errorMessage = `Gemini finish reason: ${candidate.finishReason}`;
+            }
             if (output.content.some((block) => block.type === "toolCall")) {
               output.stopReason = "toolUse";
             }

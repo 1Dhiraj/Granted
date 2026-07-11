@@ -26,6 +26,11 @@ overrides:
 
 packageExtensionsChecksum: sha256-n+P/SQo4Pf+dHYpYn1Y6wL4cJEVoVzZ835N0OEp4TM8=
 
+patchedDependencies:
+  '@mariozechner/pi-ai':
+    hash: dd0458e92b24564358f26421af63b36028f01412a7e1d6c30cbb2e1ff55c26d0
+    path: patches/@mariozechner__pi-ai.patch
+
 importers:
 
   .:
@@ -62,7 +67,7 @@ importers:
         version: 0.65.2(@modelcontextprotocol/sdk@1.29.0(zod@4.3.6))(ws@8.20.0)(zod@4.3.6)
       '@mariozechner/pi-ai':
         specifier: 0.65.2
-        version: 0.65.2(@modelcontextprotocol/sdk@1.29.0(zod@4.3.6))(ws@8.20.0)(zod@4.3.6)
+        version: 0.65.2(patch_hash=dd0458e92b24564358f26421af63b36028f01412a7e1d6c30cbb2e1ff55c26d0)(@modelcontextprotocol/sdk@1.29.0(zod@4.3.6))(ws@8.20.0)(zod@4.3.6)
       '@mariozechner/pi-coding-agent':
         specifier: 0.65.2
         version: 0.65.2(@modelcontextprotocol/sdk@1.29.0(zod@4.3.6))(ws@8.20.0)(zod@4.3.6)
@@ -324,7 +329,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/plugin-sdk
       openclaw:
-        specifier: workspace:*
+        specifier: workspace:granted-ai@*
         version: link:../..
 
   extensions/brave:
@@ -471,7 +476,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/plugin-sdk
       openclaw:
-        specifier: workspace:*
+        specifier: workspace:granted-ai@*
         version: link:../..
     optionalDependencies:
       '@discordjs/opus':
@@ -515,7 +520,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/plugin-sdk
       openclaw:
-        specifier: workspace:*
+        specifier: workspace:granted-ai@*
         version: link:../..
 
   extensions/firecrawl:
@@ -559,7 +564,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/plugin-sdk
       openclaw:
-        specifier: workspace:*
+        specifier: workspace:granted-ai@*
         version: link:../..
 
   extensions/groq:
@@ -616,7 +621,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/plugin-sdk
       openclaw:
-        specifier: workspace:*
+        specifier: workspace:granted-ai@*
         version: link:../..
 
   extensions/litellm:
@@ -676,7 +681,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/plugin-sdk
       openclaw:
-        specifier: workspace:*
+        specifier: workspace:granted-ai@*
         version: link:../..
 
   extensions/mattermost:
@@ -692,7 +697,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/plugin-sdk
       openclaw:
-        specifier: workspace:*
+        specifier: workspace:granted-ai@*
         version: link:../..
 
   extensions/media-understanding-core:
@@ -707,7 +712,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/plugin-sdk
       openclaw:
-        specifier: workspace:*
+        specifier: workspace:granted-ai@*
         version: link:../..
 
   extensions/memory-lancedb:
@@ -736,7 +741,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/plugin-sdk
       openclaw:
-        specifier: workspace:*
+        specifier: workspace:granted-ai@*
         version: link:../..
 
   extensions/microsoft:
@@ -789,7 +794,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/plugin-sdk
       openclaw:
-        specifier: workspace:*
+        specifier: workspace:granted-ai@*
         version: link:../..
 
   extensions/nextcloud-talk:
@@ -798,7 +803,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/plugin-sdk
       openclaw:
-        specifier: workspace:*
+        specifier: workspace:granted-ai@*
         version: link:../..
 
   extensions/nostr:
@@ -811,7 +816,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/plugin-sdk
       openclaw:
-        specifier: workspace:*
+        specifier: workspace:granted-ai@*
         version: link:../..
 
   extensions/nvidia:
@@ -884,7 +889,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/plugin-sdk
       openclaw:
-        specifier: workspace:*
+        specifier: workspace:granted-ai@*
         version: link:../..
 
   extensions/qa-lab:
@@ -893,7 +898,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/plugin-sdk
       openclaw:
-        specifier: workspace:*
+        specifier: workspace:granted-ai@*
         version: link:../..
 
   extensions/qianfan:
@@ -921,7 +926,7 @@ importers:
         specifier: ^8.18.1
         version: 8.18.1
       openclaw:
-        specifier: workspace:*
+        specifier: workspace:granted-ai@*
         version: link:../..
 
   extensions/qwen:
@@ -1038,7 +1043,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/plugin-sdk
       openclaw:
-        specifier: workspace:*
+        specifier: workspace:granted-ai@*
         version: link:../..
 
   extensions/together:
@@ -1103,7 +1108,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/plugin-sdk
       openclaw:
-        specifier: workspace:*
+        specifier: workspace:granted-ai@*
         version: link:../..
 
   extensions/volcengine:
@@ -1141,7 +1146,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/plugin-sdk
       openclaw:
-        specifier: workspace:*
+        specifier: workspace:granted-ai@*
         version: link:../..
 
   extensions/xai:
@@ -1172,7 +1177,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/plugin-sdk
       openclaw:
-        specifier: workspace:*
+        specifier: workspace:granted-ai@*
         version: link:../..
 
   extensions/zalouser:
@@ -1188,13 +1193,13 @@ importers:
         specifier: workspace:*
         version: link:../../packages/plugin-sdk
       openclaw:
-        specifier: workspace:*
+        specifier: workspace:granted-ai@*
         version: link:../..
 
   packages/clawdbot:
     dependencies:
       openclaw:
-        specifier: workspace:*
+        specifier: workspace:granted-ai@*
         version: link:../..
 
   packages/memory-host-sdk: {}
@@ -1202,7 +1207,7 @@ importers:
   packages/moltbot:
     dependencies:
       openclaw:
-        specifier: workspace:*
+        specifier: workspace:granted-ai@*
         version: link:../..
 
   packages/plugin-package-contract: {}
@@ -8900,7 +8905,7 @@ snapshots:
 
   '@mariozechner/pi-agent-core@0.65.2(@modelcontextprotocol/sdk@1.29.0(zod@4.3.6))(ws@8.20.0)(zod@4.3.6)':
     dependencies:
-      '@mariozechner/pi-ai': 0.65.2(@modelcontextprotocol/sdk@1.29.0(zod@4.3.6))(ws@8.20.0)(zod@4.3.6)
+      '@mariozechner/pi-ai': 0.65.2(patch_hash=dd0458e92b24564358f26421af63b36028f01412a7e1d6c30cbb2e1ff55c26d0)(@modelcontextprotocol/sdk@1.29.0(zod@4.3.6))(ws@8.20.0)(zod@4.3.6)
     transitivePeerDependencies:
       - '@modelcontextprotocol/sdk'
       - aws-crt
@@ -8910,7 +8915,7 @@ snapshots:
       - ws
       - zod
 
-  '@mariozechner/pi-ai@0.65.2(@modelcontextprotocol/sdk@1.29.0(zod@4.3.6))(ws@8.20.0)(zod@4.3.6)':
+  '@mariozechner/pi-ai@0.65.2(patch_hash=dd0458e92b24564358f26421af63b36028f01412a7e1d6c30cbb2e1ff55c26d0)(@modelcontextprotocol/sdk@1.29.0(zod@4.3.6))(ws@8.20.0)(zod@4.3.6)':
     dependencies:
       '@anthropic-ai/sdk': 0.81.0(zod@4.3.6)
       '@aws-sdk/client-bedrock-runtime': 3.1024.0
@@ -8938,7 +8943,7 @@ snapshots:
     dependencies:
       '@mariozechner/jiti': 2.6.5
       '@mariozechner/pi-agent-core': 0.65.2(@modelcontextprotocol/sdk@1.29.0(zod@4.3.6))(ws@8.20.0)(zod@4.3.6)
-      '@mariozechner/pi-ai': 0.65.2(@modelcontextprotocol/sdk@1.29.0(zod@4.3.6))(ws@8.20.0)(zod@4.3.6)
+      '@mariozechner/pi-ai': 0.65.2(patch_hash=dd0458e92b24564358f26421af63b36028f01412a7e1d6c30cbb2e1ff55c26d0)(@modelcontextprotocol/sdk@1.29.0(zod@4.3.6))(ws@8.20.0)(zod@4.3.6)
       '@mariozechner/pi-tui': 0.65.2
       '@silvia-odwyer/photon-node': 0.3.4
       ajv: 8.18.0

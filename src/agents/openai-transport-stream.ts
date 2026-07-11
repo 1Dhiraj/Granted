@@ -36,7 +36,11 @@ import {
 import { buildGuardedModelFetch } from "./provider-transport-fetch.js";
 import { stripSystemPromptCacheBoundary } from "./system-prompt-cache-boundary.js";
 import { transformTransportMessages } from "./transport-message-transform.js";
-import { mergeTransportMetadata, sanitizeTransportPayloadText } from "./transport-stream-shared.js";
+import {
+  finalizeTransportStream,
+  mergeTransportMetadata,
+  sanitizeTransportPayloadText,
+} from "./transport-stream-shared.js";
 
 const DEFAULT_AZURE_OPENAI_API_VERSION = "2024-12-01-preview";
 
@@ -687,14 +691,7 @@ export function createOpenAIResponsesTransportStreamFn(): StreamFn {
           serviceTier: (options as OpenAIResponsesOptions | undefined)?.serviceTier,
           applyServiceTierPricing,
         });
-        if (options?.signal?.aborted) {
-          throw new Error("Request was aborted");
-        }
-        if (output.stopReason === "aborted" || output.stopReason === "error") {
-          throw new Error("An unknown error occurred");
-        }
-        stream.push({ type: "done", reason: output.stopReason as never, message: output as never });
-        stream.end();
+        finalizeTransportStream({ stream, output, signal: options?.signal });
       } catch (error) {
         output.stopReason = options?.signal?.aborted ? "aborted" : "error";
         output.errorMessage = error instanceof Error ? error.message : JSON.stringify(error);
@@ -840,14 +837,7 @@ export function createAzureOpenAIResponsesTransportStreamFn(): StreamFn {
         )) as unknown as AsyncIterable<unknown>;
         stream.push({ type: "start", partial: output as never });
         await processResponsesStream(responseStream, output, stream, model);
-        if (options?.signal?.aborted) {
-          throw new Error("Request was aborted");
-        }
-        if (output.stopReason === "aborted" || output.stopReason === "error") {
-          throw new Error("An unknown error occurred");
-        }
-        stream.push({ type: "done", reason: output.stopReason as never, message: output as never });
-        stream.end();
+        finalizeTransportStream({ stream, output, signal: options?.signal });
       } catch (error) {
         output.stopReason = options?.signal?.aborted ? "aborted" : "error";
         output.errorMessage = error instanceof Error ? error.message : JSON.stringify(error);

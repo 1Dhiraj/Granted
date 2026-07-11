@@ -176,18 +176,35 @@ export type { SubagentRunOutcome } from "./subagent-announce-output.js";
 
 export type SubagentAnnounceType = "subagent task" | "cron job";
 
+function buildAnnounceFailureNote(params: {
+  announceType: SubagentAnnounceType;
+  status?: SubagentRunOutcome["status"];
+}): string {
+  if (params.status === "error" || params.status === "timeout") {
+    const verb = params.status === "timeout" ? "TIMED OUT" : "FAILED";
+    return ` IMPORTANT: This ${params.announceType} ${verb} (see status above). Report the failure and its reason honestly. Do NOT claim success and do NOT invent results.`;
+  }
+  if (params.status !== "ok") {
+    return ` NOTE: The final status of this ${params.announceType} is unknown. Do not claim it succeeded unless the result content itself proves completion; otherwise say the outcome is unverified.`;
+  }
+  return "";
+}
+
 function buildAnnounceReplyInstruction(params: {
   requesterIsSubagent: boolean;
   announceType: SubagentAnnounceType;
   expectsCompletionMessage?: boolean;
+  status?: SubagentRunOutcome["status"];
 }): string {
+  const failureNote = buildAnnounceFailureNote(params);
+  const noun = params.status === "ok" ? "completed" : "finished";
   if (params.requesterIsSubagent) {
-    return `Convert this completion into a concise internal orchestration update for your parent agent in your own words. Keep this internal context private (don't mention system/log/stats/session details or announce type). If this result is duplicate or no update is needed, reply ONLY: ${SILENT_REPLY_TOKEN}.`;
+    return `Convert this completion into a concise internal orchestration update for your parent agent in your own words. Keep this internal context private (don't mention system/log/stats/session details or announce type). If this result is duplicate or no update is needed, reply ONLY: ${SILENT_REPLY_TOKEN}.${failureNote}`;
   }
   if (params.expectsCompletionMessage) {
-    return `A completed ${params.announceType} is ready for user delivery. Convert the result above into your normal assistant voice and send that user-facing update now. Keep this internal context private (don't mention system/log/stats/session details or announce type).`;
+    return `A ${noun} ${params.announceType} is ready for user delivery. Convert the result above into your normal assistant voice and send that user-facing update now. Keep this internal context private (don't mention system/log/stats/session details or announce type).${failureNote}`;
   }
-  return `A completed ${params.announceType} is ready for user delivery. Convert the result above into your normal assistant voice and send that user-facing update now. Keep this internal context private (don't mention system/log/stats/session details or announce type), and do not copy the internal event text verbatim. Reply ONLY: ${SILENT_REPLY_TOKEN} if this exact result was already delivered to the user in this same turn.`;
+  return `A ${noun} ${params.announceType} is ready for user delivery. Convert the result above into your normal assistant voice and send that user-facing update now. Keep this internal context private (don't mention system/log/stats/session details or announce type), and do not copy the internal event text verbatim. Reply ONLY: ${SILENT_REPLY_TOKEN} if this exact result was already delivered to the user in this same turn.${failureNote}`;
 }
 
 function buildAnnounceSteerMessage(events: AgentInternalEvent[]): string {
@@ -551,6 +568,7 @@ export async function runSubagentAnnounceFlow(params: {
       requesterIsSubagent,
       announceType,
       expectsCompletionMessage,
+      status: outcome.status,
     });
     const statsLine = await buildCompactAnnounceStatsLine({
       sessionKey: params.childSessionKey,
