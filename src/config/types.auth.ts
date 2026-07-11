@@ -50,5 +50,12 @@ export type AuthConfig = {
      * errors before escalating to cross-provider model fallback. Default: 1.
      */
     rateLimitedProfileRotations?: number;
+    /**
+     * When true (default), rate-limit (429) errors escalate to the model
+     * fallback chain after profile rotations are exhausted. Set false to
+     * never switch models on rate limits: the run retries the same model
+     * with backoff and surfaces the error if the limit persists.
+     */
+    fallbackOnRateLimit?: boolean;
   };
 };

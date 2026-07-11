@@ -33,6 +33,7 @@ type AssistantFailoverOutcome =
 
 export async function handleAssistantFailover(params: {
   initialDecision: AssistantFailoverDecision;
+  rateLimitModelFallback?: boolean;
   aborted: boolean;
   fallbackConfigured: boolean;
   failoverFailure: boolean;
@@ -147,6 +148,7 @@ export async function handleAssistantFailover(params: {
 
     decision = resolveRunFailoverDecision({
       stage: "assistant",
+      rateLimitModelFallback: params.rateLimitModelFallback,
       aborted: params.aborted,
       fallbackConfigured: params.fallbackConfigured,
       failoverFailure: params.failoverFailure,

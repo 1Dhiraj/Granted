@@ -84,6 +84,7 @@ import {
   resolveMaxRunRetryIterations,
   resolveOverloadFailoverBackoffMs,
   resolveOverloadProfileRotationLimit,
+  resolveRateLimitModelFallbackEnabled,
   resolveRateLimitProfileRotationLimit,
   type RuntimeAuthState,
   scrubAnthropicRefusalMagic,
@@ -409,13 +410,18 @@ export async function runEmbeddedPiAgent(
       const overloadFailoverBackoffMs = resolveOverloadFailoverBackoffMs(params.config);
       const overloadProfileRotationLimit = resolveOverloadProfileRotationLimit(params.config);
       const rateLimitProfileRotationLimit = resolveRateLimitProfileRotationLimit(params.config);
+      const rateLimitModelFallback = resolveRateLimitModelFallbackEnabled(params.config);
       const maybeEscalateRateLimitProfileFallback = (params: {
         failoverProvider: string;
         failoverModel: string;
         logFallbackDecision: (decision: "fallback_model", extra?: { status?: number }) => void;
       }) => {
         rateLimitProfileRotations += 1;
-        if (rateLimitProfileRotations <= rateLimitProfileRotationLimit || !fallbackConfigured) {
+        if (
+          rateLimitProfileRotations <= rateLimitProfileRotationLimit ||
+          !fallbackConfigured ||
+          !rateLimitModelFallback
+        ) {
           return;
         }
         const status = resolveFailoverStatus("rate_limit");
@@ -547,6 +553,7 @@ export async function runEmbeddedPiAgent(
                 `maxAttempts=${MAX_RUN_LOOP_ITERATIONS}`,
             );
             const retryLimitDecision = resolveRunFailoverDecision({
+              rateLimitModelFallback,
               stage: "retry_limit",
               fallbackConfigured,
               failoverReason: lastRetryFailoverReason,
@@ -1208,6 +1215,7 @@ export async function runEmbeddedPiAgent(
               });
             }
             let promptFailoverDecision = resolveRunFailoverDecision({
+              rateLimitModelFallback,
               stage: "prompt",
               aborted,
               fallbackConfigured,
@@ -1229,6 +1237,7 @@ export async function runEmbeddedPiAgent(
             }
             if (promptFailoverDecision.action === "rotate_profile") {
               promptFailoverDecision = resolveRunFailoverDecision({
+                rateLimitModelFallback,
                 stage: "prompt",
                 aborted,
                 fallbackConfigured,
@@ -1345,6 +1354,7 @@ export async function runEmbeddedPiAgent(
           }
 
           const assistantFailoverDecision = resolveRunFailoverDecision({
+            rateLimitModelFallback,
             stage: "assistant",
             aborted,
             fallbackConfigured,
@@ -1356,6 +1366,7 @@ export async function runEmbeddedPiAgent(
           });
           const assistantFailoverOutcome = await handleAssistantFailover({
             initialDecision: assistantFailoverDecision,
+            rateLimitModelFallback,
             aborted,
             fallbackConfigured,
             failoverFailure,

@@ -42,6 +42,8 @@ type RetryLimitDecisionParams = {
   stage: "retry_limit";
   fallbackConfigured: boolean;
   failoverReason: FailoverReason | null;
+  /** auth.cooldowns.fallbackOnRateLimit — when false, 429s never switch models. */
+  rateLimitModelFallback?: boolean;
 };
 
 type PromptDecisionParams = {
@@ -51,6 +53,8 @@ type PromptDecisionParams = {
   failoverFailure: boolean;
   failoverReason: FailoverReason | null;
   profileRotated: boolean;
+  /** auth.cooldowns.fallbackOnRateLimit — when false, 429s never switch models. */
+  rateLimitModelFallback?: boolean;
 };
 
 type AssistantDecisionParams = {
@@ -62,6 +66,8 @@ type AssistantDecisionParams = {
   timedOut: boolean;
   timedOutDuringCompaction: boolean;
   profileRotated: boolean;
+  /** auth.cooldowns.fallbackOnRateLimit — when false, 429s never switch models. */
+  rateLimitModelFallback?: boolean;
 };
 
 export type RunFailoverDecisionParams =
@@ -69,7 +75,13 @@ export type RunFailoverDecisionParams =
   | PromptDecisionParams
   | AssistantDecisionParams;
 
-function shouldEscalateRetryLimit(reason: FailoverReason | null): boolean {
+function shouldEscalateRetryLimit(
+  reason: FailoverReason | null,
+  rateLimitModelFallback: boolean,
+): boolean {
+  if (reason === "rate_limit" && !rateLimitModelFallback) {
+    return false;
+  }
   return Boolean(
     reason &&
     reason !== "timeout" &&
@@ -79,12 +91,15 @@ function shouldEscalateRetryLimit(reason: FailoverReason | null): boolean {
   );
 }
 
-function shouldRotatePrompt(_params: PromptDecisionParams): boolean {
-  return false;
+// Rate limits rotate to the next auth profile first — another key on the
+// SAME model gets fresh quota — so rotation applies regardless of the
+// fallbackOnRateLimit toggle; only the model switch is gated by it.
+function shouldRotatePrompt(params: PromptDecisionParams): boolean {
+  return params.failoverReason === "rate_limit" && !params.aborted;
 }
 
-function shouldRotateAssistant(_params: AssistantDecisionParams): boolean {
-  return false;
+function shouldRotateAssistant(params: AssistantDecisionParams): boolean {
+  return params.failoverReason === "rate_limit" && !params.aborted;
 }
 
 export function mergeRetryFailoverReason(params: {
@@ -103,8 +118,12 @@ export function resolveRunFailoverDecision(
   params: AssistantDecisionParams,
 ): AssistantFailoverDecision;
 export function resolveRunFailoverDecision(params: RunFailoverDecisionParams): RunFailoverDecision {
+  const rateLimitModelFallback = params.rateLimitModelFallback ?? true;
   if (params.stage === "retry_limit") {
-    if (params.fallbackConfigured && shouldEscalateRetryLimit(params.failoverReason)) {
+    if (
+      params.fallbackConfigured &&
+      shouldEscalateRetryLimit(params.failoverReason, rateLimitModelFallback)
+    ) {
       const fallbackReason = params.failoverReason ?? "unknown";
       return {
         action: "fallback_model",
@@ -124,6 +143,12 @@ export function resolveRunFailoverDecision(params: RunFailoverDecisionParams): R
       };
     }
     if (params.fallbackConfigured && params.failoverFailure) {
+      if (params.failoverReason === "rate_limit" && !rateLimitModelFallback) {
+        return {
+          action: "surface_error",
+          reason: params.failoverReason,
+        };
+      }
       return {
         action: "fallback_model",
         reason: params.failoverReason ?? "unknown",
@@ -135,6 +160,9 @@ export function resolveRunFailoverDecision(params: RunFailoverDecisionParams): R
     };
   }
 
+  // Rate-limited streams used to spin on the same model until the retry
+  // limit (32+ attempts). Rotate to the next auth profile first; once
+  // rotation is exhausted, escalate to the model chain (if permitted).
   const assistantShouldRotate = shouldRotateAssistant(params);
   if (!params.profileRotated && assistantShouldRotate) {
     return {
@@ -143,18 +171,26 @@ export function resolveRunFailoverDecision(params: RunFailoverDecisionParams): R
     };
   }
   if (assistantShouldRotate && params.fallbackConfigured) {
+    if (params.failoverReason === "rate_limit" && !rateLimitModelFallback) {
+      // User opted out of switching models on rate limits: keep retrying
+      // the same model with backoff.
+      return {
+        action: "continue_normal",
+      };
+    }
     return {
       action: "fallback_model",
       reason: params.timedOut ? "timeout" : (params.failoverReason ?? "unknown"),
     };
   }
-  if (!assistantShouldRotate) {
+  if (assistantShouldRotate && !params.fallbackConfigured) {
+    // No fallback chain to advance to: keep the pre-existing behavior of
+    // retrying the same model with backoff.
     return {
       action: "continue_normal",
     };
   }
   return {
-    action: "surface_error",
-    reason: params.failoverReason,
+    action: "continue_normal",
   };
 }

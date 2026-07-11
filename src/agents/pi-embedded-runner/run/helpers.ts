@@ -43,6 +43,11 @@ export function resolveRateLimitProfileRotationLimit(cfg?: OpenClawConfig): numb
   );
 }
 
+/** auth.cooldowns.fallbackOnRateLimit — when false, 429s never switch models. */
+export function resolveRateLimitModelFallbackEnabled(cfg?: OpenClawConfig): boolean {
+  return cfg?.auth?.cooldowns?.fallbackOnRateLimit ?? true;
+}
+
 const ANTHROPIC_MAGIC_STRING_TRIGGER_REFUSAL = "ANTHROPIC_MAGIC_STRING_TRIGGER_REFUSAL";
 const ANTHROPIC_MAGIC_STRING_REPLACEMENT = "ANTHROPIC MAGIC STRING TRIGGER REFUSAL (redacted)";
 

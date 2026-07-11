@@ -1073,6 +1073,12 @@ export const GENERATED_BASE_CONFIG_SCHEMA: BaseConfigSchemaResponse = {
                 description:
                   "Maximum same-provider auth-profile rotations allowed for rate-limit errors before switching to model fallback (default: 1).",
               },
+              fallbackOnRateLimit: {
+                type: "boolean",
+                title: "Fallback Models on Rate Limit",
+                description:
+                  "Use fallback models when rate limited (default: true). Disable to always wait for the primary model instead of switching: runs retry with backoff and surface the error if the limit persists.",
+              },
             },
             additionalProperties: false,
             title: "Auth Cooldowns",
@@ -25056,6 +25062,11 @@ export const GENERATED_BASE_CONFIG_SCHEMA: BaseConfigSchemaResponse = {
       help: "Maximum same-provider auth-profile rotations allowed for rate-limit errors before switching to model fallback (default: 1).",
       tags: ["auth", "access", "performance", "storage"],
     },
+    "auth.cooldowns.fallbackOnRateLimit": {
+      label: "Fallback Models on Rate Limit",
+      help: "Use fallback models when rate limited (default: true). Disable to always wait for the primary model instead of switching: runs retry with backoff and surface the error if the limit persists.",
+      tags: ["auth", "access", "reliability", "performance"],
+    },
     "agents.defaults.models": {
       label: "Models",
       help: "Configured model catalog (keys are full provider/model IDs).",
@@ -26975,6 +26986,6 @@ export const GENERATED_BASE_CONFIG_SCHEMA: BaseConfigSchemaResponse = {
       tags: ["advanced", "url-secret"],
     },
   },
-  version: "2026.4.7",
+  version: "0.0.0",
   generatedAt: "2026-03-22T21:17:33.302Z",
 };

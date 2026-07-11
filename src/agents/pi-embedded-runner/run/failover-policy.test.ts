@@ -95,6 +95,73 @@ describe("resolveRunFailoverDecision", () => {
     });
   });
 
+  it("keeps retrying the same model when fallbackOnRateLimit is disabled (assistant)", () => {
+    expect(
+      resolveRunFailoverDecision({
+        stage: "assistant",
+        rateLimitModelFallback: false,
+        aborted: false,
+        fallbackConfigured: true,
+        failoverFailure: false,
+        failoverReason: "rate_limit",
+        timedOut: false,
+        timedOutDuringCompaction: false,
+        profileRotated: true,
+      }),
+    ).toEqual({
+      action: "continue_normal",
+    });
+  });
+
+  it("still rotates profiles on 429 when fallbackOnRateLimit is disabled", () => {
+    expect(
+      resolveRunFailoverDecision({
+        stage: "assistant",
+        rateLimitModelFallback: false,
+        aborted: false,
+        fallbackConfigured: true,
+        failoverFailure: false,
+        failoverReason: "rate_limit",
+        timedOut: false,
+        timedOutDuringCompaction: false,
+        profileRotated: false,
+      }),
+    ).toEqual({
+      action: "rotate_profile",
+      reason: "rate_limit",
+    });
+  });
+
+  it("surfaces prompt-side 429s instead of switching models when disabled", () => {
+    expect(
+      resolveRunFailoverDecision({
+        stage: "prompt",
+        rateLimitModelFallback: false,
+        aborted: false,
+        fallbackConfigured: true,
+        failoverFailure: true,
+        failoverReason: "rate_limit",
+        profileRotated: true,
+      }),
+    ).toEqual({
+      action: "surface_error",
+      reason: "rate_limit",
+    });
+  });
+
+  it("does not escalate retry-limit exhaustion for 429s when disabled", () => {
+    expect(
+      resolveRunFailoverDecision({
+        stage: "retry_limit",
+        rateLimitModelFallback: false,
+        fallbackConfigured: true,
+        failoverReason: "rate_limit",
+      }),
+    ).toEqual({
+      action: "return_error_payload",
+    });
+  });
+
   it("does nothing for assistant turns without failover signals", () => {
     expect(
       resolveRunFailoverDecision({
