@@ -5,6 +5,7 @@ import {
   isReplyRunActiveForSessionId,
   isReplyRunStreamingForSessionId,
   listActiveReplyRunSessionIds,
+  listActiveReplyRunSessionKeys,
   queueReplyRunMessage,
   resolveActiveReplyRunSessionId,
   waitForReplyRunEndBySessionId,
@@ -214,6 +215,17 @@ export function resolveActiveEmbeddedRunSessionId(sessionKey: string): string | 
     resolveActiveReplyRunSessionId(normalizedSessionKey) ??
     ACTIVE_EMBEDDED_RUN_SESSION_IDS_BY_KEY.get(normalizedSessionKey)
   );
+}
+
+/** Session keys with an agent run in flight (any source: chat, cron, channel…). */
+export function listActiveEmbeddedRunSessionKeys(): string[] {
+  const keys = new Set<string>(listActiveReplyRunSessionKeys());
+  for (const [sessionKey, sessionId] of ACTIVE_EMBEDDED_RUN_SESSION_IDS_BY_KEY) {
+    if (ACTIVE_EMBEDDED_RUNS.has(sessionId)) {
+      keys.add(sessionKey);
+    }
+  }
+  return [...keys];
 }
 
 export function getActiveEmbeddedRunCount(): number {

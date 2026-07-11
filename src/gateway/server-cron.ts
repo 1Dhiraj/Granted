@@ -14,6 +14,11 @@ import {
   resolveFailureDestination,
   sendFailureNotificationAnnounce,
 } from "../cron/delivery.js";
+import {
+  buildCronDailyDigest,
+  expandDailyDigestPlaceholder,
+  messageHasDailyDigestPlaceholder,
+} from "../cron/daily-digest.js";
 import { runCronIsolatedAgentTurn } from "../cron/isolated-agent.js";
 import { resolveDeliveryTarget } from "../cron/isolated-agent/delivery-target.js";
 import {
@@ -290,12 +295,28 @@ export function buildGatewayCronService(params: {
       if (job.sessionTarget.startsWith("session:")) {
         sessionKey = assertSafeCronSessionTargetId(job.sessionTarget.slice(8));
       }
+      // Morning-briefing style jobs: replace {{dailyDigest}} with a code-built
+      // summary of the last 24h of scheduled runs so the agent formats real
+      // data instead of inventing it.
+      let resolvedMessage = message;
+      if (messageHasDailyDigestPlaceholder(resolvedMessage)) {
+        const jobNameById: Record<string, string> = {};
+        try {
+          for (const entry of await cron.list({ includeDisabled: true })) {
+            jobNameById[entry.id] = entry.name;
+          }
+        } catch {
+          // Digest still works with raw job ids.
+        }
+        const digest = await buildCronDailyDigest({ storePath, jobNameById });
+        resolvedMessage = expandDailyDigestPlaceholder(resolvedMessage, digest);
+      }
       try {
         return await runCronIsolatedAgentTurn({
           cfg: runtimeConfig,
           deps: params.deps,
           job,
-          message,
+          message: resolvedMessage,
           abortSignal,
           agentId,
           sessionKey,

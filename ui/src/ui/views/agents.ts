@@ -19,9 +19,10 @@ import {
   renderAgentCron,
 } from "./agents-panels-status-files.ts";
 import { renderAgentTools, renderAgentSkills } from "./agents-panels-tools-skills.ts";
+import { renderAgentJobs, type AgentJobsResult } from "./agents-panels-jobs.ts";
 import { agentBadgeText, buildAgentContext, normalizeAgentLabel } from "./agents-utils.ts";
 
-export type AgentsPanel = "overview" | "files" | "tools" | "skills" | "channels" | "cron";
+export type AgentsPanel = "overview" | "files" | "tools" | "skills" | "channels" | "cron" | "jobs";
 
 export type ConfigState = {
   form: Record<string, unknown> | null;
@@ -108,6 +109,8 @@ export type AgentsProps = {
   agentIdentityError: string | null;
   agentIdentityById: Record<string, AgentIdentityResult>;
   agentSkills: AgentSkillsState;
+  agentJobs: { loading: boolean; error: string | null; result: AgentJobsResult | null };
+  agentWorkingIds: string[];
   toolsCatalog: ToolsCatalogState;
   toolsEffective: ToolsEffectiveState;
   runtimeSessionKey: string;
@@ -128,6 +131,8 @@ export type AgentsProps = {
   onModelChange: (agentId: string, modelId: string | null) => void;
   onModelFallbacksChange: (agentId: string, fallbacks: string[]) => void;
   onChannelsRefresh: () => void;
+  onJobsRefresh: () => void;
+  onJobResume: (agentId: string, jobName: string) => void;
   onCronRefresh: () => void;
   onCronRunNow: (jobId: string) => void;
   onSkillsFilterChange: (next: string) => void;
@@ -455,6 +460,16 @@ export function renderAgents(props: AgentsProps) {
                     onSelectPanel: props.onSelectPanel,
                   })
                 : nothing}
+              ${props.activePanel === "jobs"
+                ? renderAgentJobs({
+                    loading: props.agentJobs.loading,
+                    error: props.agentJobs.error,
+                    result: props.agentJobs.result,
+                    agentWorking: props.agentWorkingIds.includes(selectedAgent.id),
+                    onRefresh: props.onJobsRefresh,
+                    onResume: (jobName) => props.onJobResume(selectedAgent.id, jobName),
+                  })
+                : nothing}
               ${props.activePanel === "cron"
                 ? renderAgentCron({
                     context: buildAgentContext(
@@ -492,6 +507,7 @@ function renderAgentTabs(
     { id: "skills", label: "Skills" },
     { id: "channels", label: "Channels" },
     { id: "cron", label: "Cron Jobs" },
+    { id: "jobs", label: "Jobs" },
   ];
   return html`
     <div class="agent-tabs">

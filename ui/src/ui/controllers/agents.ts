@@ -44,6 +44,35 @@ export type AgentsState = {
 
 export type AgentsConfigSaveState = AgentsState & ConfigState;
 
+export type AgentsActivityState = {
+  client: GatewayBrowserClient | null;
+  connected: boolean;
+  agentsActiveIds: string[];
+};
+
+/** Refresh which agents have runs in flight (any source: chat, cron, channels). */
+export async function loadAgentsActivity(state: AgentsActivityState) {
+  if (!state.client || !state.connected) {
+    return;
+  }
+  try {
+    const res = await state.client.request<{ ts: number; activeAgentIds: string[] }>(
+      "agents.activity",
+      {},
+    );
+    if (res && Array.isArray(res.activeAgentIds)) {
+      const next = res.activeAgentIds.filter((id): id is string => typeof id === "string");
+      // Avoid re-render churn when nothing changed.
+      const prev = state.agentsActiveIds;
+      if (prev.length !== next.length || next.some((id, i) => prev[i] !== id)) {
+        state.agentsActiveIds = next;
+      }
+    }
+  } catch {
+    // Best-effort status polling — never surface errors for this.
+  }
+}
+
 export async function loadAgents(state: AgentsState) {
   if (!state.client || !state.connected) {
     return;

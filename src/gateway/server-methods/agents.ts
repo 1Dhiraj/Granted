@@ -36,7 +36,13 @@ import {
 import { assertNoPathAliasEscape } from "../../infra/path-alias-guards.js";
 import { isNotFoundPathError } from "../../infra/path-guards.js";
 import { movePathToTrash } from "../../plugin-sdk/browser-maintenance.js";
-import { DEFAULT_AGENT_ID, normalizeAgentId } from "../../routing/session-key.js";
+import { parseJobFile } from "../../agents/jobs/parse-job-file.js";
+import { listActiveEmbeddedRunSessionKeys } from "../../agents/pi-embedded-runner/runs.js";
+import {
+  DEFAULT_AGENT_ID,
+  normalizeAgentId,
+  parseAgentSessionKey,
+} from "../../routing/session-key.js";
 import { normalizeOptionalString } from "../../shared/string-coerce.js";
 import { resolveUserPath } from "../../utils.js";
 import {
@@ -546,6 +552,29 @@ async function appendWorkspaceFileOrRespond(params: {
 }
 
 export const agentsHandlers: GatewayRequestHandlers = {
+  // Which agents have a run in flight right now (chat, cron, heartbeat,
+  // channel-driven — any source). Powers live status in the World/Agents UI.
+  "agents.activity": ({ params, respond }) => {
+    if (!validateAgentsListParams(params)) {
+      respond(
+        false,
+        undefined,
+        errorShape(
+          ErrorCodes.INVALID_REQUEST,
+          `invalid agents.activity params: ${formatValidationErrors(validateAgentsListParams.errors)}`,
+        ),
+      );
+      return;
+    }
+    const activeAgentIds = new Set<string>();
+    for (const sessionKey of listActiveEmbeddedRunSessionKeys()) {
+      const parsed = parseAgentSessionKey(sessionKey);
+      if (parsed?.agentId) {
+        activeAgentIds.add(normalizeAgentId(parsed.agentId));
+      }
+    }
+    respond(true, { ts: Date.now(), activeAgentIds: [...activeAgentIds] }, undefined);
+  },
   "agents.list": ({ params, respond }) => {
     if (!validateAgentsListParams(params)) {
       respond(
@@ -800,6 +829,69 @@ export const agentsHandlers: GatewayRequestHandlers = {
     }
 
     respond(true, { ok: true, agentId, removedBindings: result.removedBindings }, undefined);
+  },
+  // Long-running task files (jobs/*.md) with checkbox progress. Powers the
+  // Jobs panel: pending/running/done at a glance, resumable from the UI.
+  "agents.jobs.list": async ({ params, respond }) => {
+    if (!validateAgentsFilesListParams(params)) {
+      respond(
+        false,
+        undefined,
+        errorShape(
+          ErrorCodes.INVALID_REQUEST,
+          `invalid agents.jobs.list params: ${formatValidationErrors(
+            validateAgentsFilesListParams.errors,
+          )}`,
+        ),
+      );
+      return;
+    }
+    const cfg = loadConfig();
+    const agentId = resolveAgentIdOrError(String(params.agentId ?? ""), cfg);
+    if (!agentId) {
+      respond(false, undefined, errorShape(ErrorCodes.INVALID_REQUEST, "unknown agent id"));
+      return;
+    }
+    const workspaceDir = resolveAgentWorkspaceDir(cfg, agentId);
+    const jobsDir = path.join(workspaceDir, "jobs");
+    const jobs: Array<{
+      name: string;
+      title: string;
+      done: number;
+      total: number;
+      status: "done" | "in-progress" | "pending" | "note";
+      updatedAtMs: number;
+    }> = [];
+    try {
+      const entries = await fs.readdir(jobsDir, { withFileTypes: true });
+      for (const entry of entries) {
+        if (!entry.isFile() || !entry.name.toLowerCase().endsWith(".md")) {
+          continue;
+        }
+        const filePath = path.join(jobsDir, entry.name);
+        try {
+          const [content, stat] = await Promise.all([
+            fs.readFile(filePath, "utf8"),
+            fs.stat(filePath),
+          ]);
+          const parsed = parseJobFile(entry.name, content);
+          jobs.push({
+            name: entry.name,
+            title: parsed.title,
+            done: parsed.done,
+            total: parsed.total,
+            status: parsed.status,
+            updatedAtMs: Math.round(stat.mtimeMs),
+          });
+        } catch {
+          // Skip unreadable job files rather than failing the whole list.
+        }
+      }
+    } catch {
+      // No jobs directory yet — empty list is the correct answer.
+    }
+    jobs.sort((a, b) => b.updatedAtMs - a.updatedAtMs);
+    respond(true, { agentId, jobs }, undefined);
   },
   "agents.files.list": async ({ params, respond }) => {
     if (!validateAgentsFilesListParams(params)) {

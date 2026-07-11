@@ -80,6 +80,7 @@ const METHOD_SCOPE_GROUPS: Record<OperatorScope, readonly string[]> = {
     "tools.catalog",
     "tools.effective",
     "agents.list",
+    "agents.activity",
     "agent.identity.get",
     "skills.status",
     "skills.search",
@@ -113,6 +114,7 @@ const METHOD_SCOPE_GROUPS: Record<OperatorScope, readonly string[]> = {
     "config.schema.lookup",
     "talk.config",
     "agents.files.list",
+    "agents.jobs.list",
     "agents.files.get",
   ],
   [WRITE_SCOPE]: [

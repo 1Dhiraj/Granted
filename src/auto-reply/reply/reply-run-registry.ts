@@ -510,6 +510,10 @@ export function listActiveReplyRunSessionIds(): string[] {
   return [...replyRunState.activeSessionIdsByKey.values()];
 }
 
+export function listActiveReplyRunSessionKeys(): string[] {
+  return [...replyRunState.activeRunsByKey.keys()];
+}
+
 export const __testing = {
   resetReplyRunRegistry(): void {
     replyRunState.activeRunsByKey.clear();

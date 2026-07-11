@@ -1,6 +1,7 @@
 import { html, nothing } from "lit";
 import { ifDefined } from "lit/directives/if-defined.js";
 import { t } from "../../i18n/index.ts";
+import { humanizeGatewayError } from "../connection-status.ts";
 import type {
   CronFieldErrors,
   CronFieldKey,
@@ -21,6 +22,7 @@ import type {
   CronSortDir,
 } from "../types.ts";
 import type { CronFormState } from "../ui-types.ts";
+import { renderEmptyState } from "./empty-state.ts";
 
 export type CronProps = {
   basePath: string;
@@ -425,7 +427,12 @@ export function renderCron(props: CronProps) {
         >
           ${props.loading ? t("cron.summary.refreshing") : t("cron.summary.refresh")}
         </button>
-        ${props.error ? html`<span class="muted">${props.error}</span>` : nothing}
+        ${(() => {
+          const friendly = humanizeGatewayError(props.error);
+          return friendly
+            ? html`<span class="muted" title=${friendly.raw}>${friendly.title}</span>`
+            : nothing;
+        })()}
       </div>
     </section>
 
@@ -548,7 +555,15 @@ export function renderCron(props: CronProps) {
             </label>
           </div>
           ${props.jobs.length === 0
-            ? html` <div class="muted" style="margin-top: 12px">${t("cron.jobs.noMatching")}</div> `
+            ? hasActiveJobsFilters
+              ? html`
+                  <div class="muted" style="margin-top: 12px">${t("cron.jobs.noMatching")}</div>
+                `
+              : renderEmptyState({
+                  icon: "loader",
+                  title: t("emptyStates.cronJobs.title"),
+                  hint: t("emptyStates.cronJobs.hint"),
+                })
             : html`
                 <div class="list" style="margin-top: 12px;">
                   ${props.jobs.map((job) => renderJob(job, props))}
@@ -675,9 +690,11 @@ export function renderCron(props: CronProps) {
                 <div class="muted" style="margin-top: 12px">${t("cron.runs.selectJobHint")}</div>
               `
             : runs.length === 0
-              ? html`
-                  <div class="muted" style="margin-top: 12px">${t("cron.runs.noMatching")}</div>
-                `
+              ? renderEmptyState({
+                  icon: "scrollText",
+                  title: t("emptyStates.cronRuns.title"),
+                  hint: t("emptyStates.cronRuns.hint"),
+                })
               : html`
                   <div class="list" style="margin-top: 12px;">
                     ${runs.map((entry) => renderRun(entry, props.basePath, props.onNavigateToChat))}
@@ -704,6 +721,33 @@ export function renderCron(props: CronProps) {
         <div class="card-sub">
           ${isEditing ? t("cron.form.updateSubtitle") : t("cron.form.createSubtitle")}
         </div>
+        ${!isEditing
+          ? html`<div class="cron-presets">
+              <span class="cron-presets__label">Presets:</span>
+              <button
+                type="button"
+                class="btn btn--subtle btn--sm"
+                title="Every morning at 8:00, message you a summary of what ran overnight — successes, failures and run times."
+                @click=${() =>
+                  props.onFormChange({
+                    name: "Morning briefing",
+                    description: "Daily summary of scheduled runs, delivered to your channel.",
+                    scheduleKind: "cron",
+                    cronExpr: "0 8 * * *",
+                    sessionTarget: "isolated",
+                    payloadKind: "agentTurn",
+                    payloadText:
+                      "Here is the real run data for the last 24 hours:\n\n{{dailyDigest}}\n\nRewrite this as a short, friendly morning briefing (a few lines, plain language). Lead with anything that failed and needs my attention; if everything succeeded, say so in one line. Do not invent data beyond what is above.",
+                    deliveryMode: "announce",
+                    deliveryChannel: "last",
+                    deleteAfterRun: false,
+                    enabled: true,
+                  })}
+              >
+                ☀️ Morning briefing
+              </button>
+            </div>`
+          : nothing}
         <div class="cron-form">
           <div class="cron-required-legend">
             <span class="cron-required-marker" aria-hidden="true">*</span> ${t(
