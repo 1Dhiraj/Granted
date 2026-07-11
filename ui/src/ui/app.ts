@@ -279,6 +279,7 @@ export class OpenClawApp extends LitElement {
   @state() agentsList: AgentsListResult | null = null;
   @state() agentsError: string | null = null;
   @state() agentsSelectedId: string | null = null;
+  @state() agentsActiveIds: string[] = [];
   @state() worldSelectedAgentId: string | null = null;
   @state() worldPrompt = "";
   @state() worldTheme = localStorage.getItem("granted.worldTheme") ?? "office";
@@ -297,7 +298,8 @@ export class OpenClawApp extends LitElement {
   @state() toolsEffectiveResultKey: string | null = null;
   @state() toolsEffectiveError: string | null = null;
   @state() toolsEffectiveResult: ToolsEffectiveResult | null = null;
-  @state() agentsPanel: "overview" | "files" | "tools" | "skills" | "channels" | "cron" = "files";
+  @state() agentsPanel: "overview" | "files" | "tools" | "skills" | "channels" | "cron" | "jobs" =
+    "files";
   @state() agentFilesLoading = false;
   @state() agentFilesError: string | null = null;
   @state() agentFilesList: AgentsFilesListResult | null = null;
@@ -305,6 +307,9 @@ export class OpenClawApp extends LitElement {
   @state() agentFileDrafts: Record<string, string> = {};
   @state() agentFileActive: string | null = null;
   @state() agentFileSaving = false;
+  @state() agentJobsLoading = false;
+  @state() agentJobsError: string | null = null;
+  @state() agentJobsResult: import("./views/agents-panels-jobs.ts").AgentJobsResult | null = null;
   @state() agentIdentityLoading = false;
   @state() agentIdentityError: string | null = null;
   @state() agentIdentityById: Record<string, AgentIdentityResult> = {};
@@ -505,6 +510,7 @@ export class OpenClawApp extends LitElement {
   private chatUserNearBottom = true;
   @state() chatNewMessagesBelow = false;
   private nodesPollInterval: number | null = null;
+  agentsActivityPollInterval: number | null = null;
   private logsPollInterval: number | null = null;
   private debugPollInterval: number | null = null;
   private logsScrollFrame: number | null = null;
@@ -822,6 +828,6 @@ export class OpenClawApp extends LitElement {
   }
 }
 
-if (!customElements.get("openclaw-app")) {
-  customElements.define("openclaw-app", OpenClawApp);
+if (!customElements.get("granted-app")) {
+  customElements.define("granted-app", OpenClawApp);
 }

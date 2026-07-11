@@ -1,6 +1,7 @@
 import { html, nothing } from "lit";
 import { ref } from "lit/directives/ref.js";
 import { t } from "../../i18n/index.ts";
+import { humanizeGatewayError } from "../connection-status.ts";
 import type {
   ClawHubSearchResult,
   ClawHubSkillDetail,
@@ -10,6 +11,7 @@ import { clampText } from "../format.ts";
 import { resolveSafeExternalUrl } from "../open-external-url.ts";
 import { normalizeLowercaseStringOrEmpty } from "../string-coerce.ts";
 import type { SkillStatusEntry, SkillStatusReport } from "../types.ts";
+import { renderEmptyState } from "./empty-state.ts";
 import { groupSkills } from "./skills-grouping.ts";
 import {
   computeSkillMissing,
@@ -210,15 +212,25 @@ export function renderSkills(props: SkillsProps) {
         ${renderClawHubResults(props)}
       </div>
 
-      ${props.error
-        ? html`<div class="callout danger" style="margin-top: 12px;">${props.error}</div>`
-        : nothing}
+      ${(() => {
+        const friendly = humanizeGatewayError(props.error);
+        return friendly
+          ? html`<div class="callout danger" style="margin-top: 12px;" title=${friendly.raw}>
+              <div>${friendly.title}</div>
+              ${friendly.hint ? html`<div class="callout__hint">${friendly.hint}</div>` : nothing}
+            </div>`
+          : nothing;
+      })()}
       ${filtered.length === 0
         ? html`
-            <div class="muted" style="margin-top: 16px">
+            <div style="margin-top: 16px">
               ${!props.connected && !props.report
-                ? "Not connected to gateway."
-                : "No skills found."}
+                ? html`<div class="muted">${t("connection.notConnected")}</div>`
+                : renderEmptyState({
+                    icon: "zap",
+                    title: t("emptyStates.skills.title"),
+                    hint: t("emptyStates.skills.hint"),
+                  })}
             </div>
           `
         : html`

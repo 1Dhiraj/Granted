@@ -1,6 +1,7 @@
 import { html, nothing } from "lit";
 import { t, i18n, SUPPORTED_LOCALES, type Locale, isSupportedLocale } from "../../i18n/index.ts";
 import type { EventLogEntry } from "../app-events.ts";
+import { humanizeGatewayError } from "../connection-status.ts";
 import { buildExternalLinkRel, EXTERNAL_LINK_TARGET } from "../external-link.ts";
 import { formatRelativeTimestamp, formatDurationHuman } from "../format.ts";
 import type { GatewayHelloOk } from "../gateway.ts";
@@ -91,7 +92,7 @@ export function renderOverview(props: OverviewProps) {
         <div style="margin-top: 6px">
           <a
             class="session-link"
-            href="https://docs.openclaw.ai/web/control-ui#device-pairing-first-connection"
+            href="https://github.com/1Dhiraj/granted/blob/main/docs/web/control-ui.md#device-pairing-first-connection"
             target=${EXTERNAL_LINK_TARGET}
             rel=${buildExternalLinkRel()}
             title="Device pairing docs (opens in new tab)"
@@ -124,7 +125,7 @@ export function renderOverview(props: OverviewProps) {
           <div style="margin-top: 6px">
             <a
               class="session-link"
-              href="https://docs.openclaw.ai/web/dashboard"
+              href="https://github.com/1Dhiraj/granted/blob/main/docs/web/dashboard.md"
               target=${EXTERNAL_LINK_TARGET}
               rel=${buildExternalLinkRel()}
               title="Control UI auth docs (opens in new tab)"
@@ -140,7 +141,7 @@ export function renderOverview(props: OverviewProps) {
         <div style="margin-top: 6px">
           <a
             class="session-link"
-            href="https://docs.openclaw.ai/web/dashboard"
+            href="https://github.com/1Dhiraj/granted/blob/main/docs/web/dashboard.md"
             target=${EXTERNAL_LINK_TARGET}
             rel=${buildExternalLinkRel()}
             title="Control UI auth docs (opens in new tab)"
@@ -216,157 +217,158 @@ export function renderOverview(props: OverviewProps) {
     ? props.settings.locale
     : i18n.getLocale();
 
+  const accessCard = html`
+    <div class="card">
+      <div class="card-title">${t("overview.access.title")}</div>
+      <div class="card-sub">${t("overview.access.subtitle")}</div>
+      <div class="ov-access-grid" style="margin-top: 16px;">
+        <label class="field ov-access-grid__full">
+          <span>${t("overview.access.wsUrl")}</span>
+          <input
+            .value=${props.settings.gatewayUrl}
+            @input=${(e: Event) => {
+              const v = (e.target as HTMLInputElement).value;
+              props.onSettingsChange({
+                ...props.settings,
+                gatewayUrl: v,
+                token: v.trim() === props.settings.gatewayUrl.trim() ? props.settings.token : "",
+              });
+            }}
+            placeholder="ws://100.x.y.z:18789"
+          />
+        </label>
+        ${isTrustedProxy
+          ? ""
+          : html`
+              <label class="field">
+                <span>${t("overview.access.token")}</span>
+                <div style="display: flex; align-items: center; gap: 8px; min-width: 0;">
+                  <input
+                    type=${props.showGatewayToken ? "text" : "password"}
+                    autocomplete="off"
+                    style="flex: 1 1 0%; min-width: 0; box-sizing: border-box;"
+                    .value=${props.settings.token}
+                    @input=${(e: Event) => {
+                      const v = (e.target as HTMLInputElement).value;
+                      props.onSettingsChange({ ...props.settings, token: v });
+                    }}
+                    placeholder="OPENCLAW_GATEWAY_TOKEN"
+                  />
+                  <button
+                    type="button"
+                    class="btn btn--icon ${props.showGatewayToken ? "active" : ""}"
+                    style="flex-shrink: 0; width: 36px; height: 36px; box-sizing: border-box;"
+                    title=${props.showGatewayToken ? "Hide token" : "Show token"}
+                    aria-label="Toggle token visibility"
+                    aria-pressed=${props.showGatewayToken}
+                    @click=${props.onToggleGatewayTokenVisibility}
+                  >
+                    ${props.showGatewayToken ? icons.eye : icons.eyeOff}
+                  </button>
+                </div>
+              </label>
+              <label class="field">
+                <span>${t("overview.access.password")}</span>
+                <div style="display: flex; align-items: center; gap: 8px; min-width: 0;">
+                  <input
+                    type=${props.showGatewayPassword ? "text" : "password"}
+                    autocomplete="off"
+                    style="flex: 1 1 0%; min-width: 0; width: 100%; box-sizing: border-box;"
+                    .value=${props.password}
+                    @input=${(e: Event) => {
+                      const v = (e.target as HTMLInputElement).value;
+                      props.onPasswordChange(v);
+                    }}
+                    placeholder="system or shared password"
+                  />
+                  <button
+                    type="button"
+                    class="btn btn--icon ${props.showGatewayPassword ? "active" : ""}"
+                    style="flex-shrink: 0; width: 36px; height: 36px; box-sizing: border-box;"
+                    title=${props.showGatewayPassword ? "Hide password" : "Show password"}
+                    aria-label="Toggle password visibility"
+                    aria-pressed=${props.showGatewayPassword}
+                    @click=${props.onToggleGatewayPasswordVisibility}
+                  >
+                    ${props.showGatewayPassword ? icons.eye : icons.eyeOff}
+                  </button>
+                </div>
+              </label>
+            `}
+        <label class="field">
+          <span>${t("overview.access.sessionKey")}</span>
+          <input
+            .value=${props.settings.sessionKey}
+            @input=${(e: Event) => {
+              const v = (e.target as HTMLInputElement).value;
+              props.onSessionKeyChange(v);
+            }}
+          />
+        </label>
+        <label class="field">
+          <span>${t("overview.access.language")}</span>
+          <select
+            .value=${currentLocale}
+            @change=${(e: Event) => {
+              const v = (e.target as HTMLSelectElement).value as Locale;
+              void i18n.setLocale(v);
+              props.onSettingsChange({ ...props.settings, locale: v });
+            }}
+          >
+            ${SUPPORTED_LOCALES.map((loc) => {
+              const key = loc.replace(/-([a-zA-Z])/g, (_, c) => c.toUpperCase());
+              return html`<option value=${loc} ?selected=${currentLocale === loc}>
+                ${t(`languages.${key}`)}
+              </option>`;
+            })}
+          </select>
+        </label>
+      </div>
+      <div class="row" style="margin-top: 14px;">
+        <button class="btn" @click=${() => props.onConnect()}>${t("common.connect")}</button>
+        <button class="btn" @click=${() => props.onRefresh()}>${t("common.refresh")}</button>
+        <span class="muted"
+          >${isTrustedProxy
+            ? t("overview.access.trustedProxy")
+            : t("overview.access.connectHint")}</span
+        >
+      </div>
+      ${!props.connected
+        ? html`
+            <div class="login-gate__help" style="margin-top: 16px;">
+              <div class="login-gate__help-title">${t("overview.connection.title")}</div>
+              <ol class="login-gate__steps">
+                <li>
+                  ${t("overview.connection.step1")} ${renderConnectCommand("granted gateway run")}
+                </li>
+                <li>
+                  ${t("overview.connection.step2")} ${renderConnectCommand("granted dashboard")}
+                </li>
+                <li>${t("overview.connection.step3")}</li>
+                <li>
+                  ${t("overview.connection.step4")}<code
+                    >openclaw doctor --generate-gateway-token</code
+                  >
+                </li>
+              </ol>
+              <div class="login-gate__docs">
+                ${t("overview.connection.docsHint")}
+                <a
+                  class="session-link"
+                  href="https://github.com/1Dhiraj/granted/blob/main/docs/web/dashboard.md"
+                  target="_blank"
+                  rel="noreferrer"
+                  >${t("overview.connection.docsLink")}</a
+                >
+              </div>
+            </div>
+          `
+        : nothing}
+    </div>
+  `;
+
   return html`
     <section class="grid">
-      <div class="card">
-        <div class="card-title">${t("overview.access.title")}</div>
-        <div class="card-sub">${t("overview.access.subtitle")}</div>
-        <div class="ov-access-grid" style="margin-top: 16px;">
-          <label class="field ov-access-grid__full">
-            <span>${t("overview.access.wsUrl")}</span>
-            <input
-              .value=${props.settings.gatewayUrl}
-              @input=${(e: Event) => {
-                const v = (e.target as HTMLInputElement).value;
-                props.onSettingsChange({
-                  ...props.settings,
-                  gatewayUrl: v,
-                  token: v.trim() === props.settings.gatewayUrl.trim() ? props.settings.token : "",
-                });
-              }}
-              placeholder="ws://100.x.y.z:18789"
-            />
-          </label>
-          ${isTrustedProxy
-            ? ""
-            : html`
-                <label class="field">
-                  <span>${t("overview.access.token")}</span>
-                  <div style="display: flex; align-items: center; gap: 8px; min-width: 0;">
-                    <input
-                      type=${props.showGatewayToken ? "text" : "password"}
-                      autocomplete="off"
-                      style="flex: 1 1 0%; min-width: 0; box-sizing: border-box;"
-                      .value=${props.settings.token}
-                      @input=${(e: Event) => {
-                        const v = (e.target as HTMLInputElement).value;
-                        props.onSettingsChange({ ...props.settings, token: v });
-                      }}
-                      placeholder="OPENCLAW_GATEWAY_TOKEN"
-                    />
-                    <button
-                      type="button"
-                      class="btn btn--icon ${props.showGatewayToken ? "active" : ""}"
-                      style="flex-shrink: 0; width: 36px; height: 36px; box-sizing: border-box;"
-                      title=${props.showGatewayToken ? "Hide token" : "Show token"}
-                      aria-label="Toggle token visibility"
-                      aria-pressed=${props.showGatewayToken}
-                      @click=${props.onToggleGatewayTokenVisibility}
-                    >
-                      ${props.showGatewayToken ? icons.eye : icons.eyeOff}
-                    </button>
-                  </div>
-                </label>
-                <label class="field">
-                  <span>${t("overview.access.password")}</span>
-                  <div style="display: flex; align-items: center; gap: 8px; min-width: 0;">
-                    <input
-                      type=${props.showGatewayPassword ? "text" : "password"}
-                      autocomplete="off"
-                      style="flex: 1 1 0%; min-width: 0; width: 100%; box-sizing: border-box;"
-                      .value=${props.password}
-                      @input=${(e: Event) => {
-                        const v = (e.target as HTMLInputElement).value;
-                        props.onPasswordChange(v);
-                      }}
-                      placeholder="system or shared password"
-                    />
-                    <button
-                      type="button"
-                      class="btn btn--icon ${props.showGatewayPassword ? "active" : ""}"
-                      style="flex-shrink: 0; width: 36px; height: 36px; box-sizing: border-box;"
-                      title=${props.showGatewayPassword ? "Hide password" : "Show password"}
-                      aria-label="Toggle password visibility"
-                      aria-pressed=${props.showGatewayPassword}
-                      @click=${props.onToggleGatewayPasswordVisibility}
-                    >
-                      ${props.showGatewayPassword ? icons.eye : icons.eyeOff}
-                    </button>
-                  </div>
-                </label>
-              `}
-          <label class="field">
-            <span>${t("overview.access.sessionKey")}</span>
-            <input
-              .value=${props.settings.sessionKey}
-              @input=${(e: Event) => {
-                const v = (e.target as HTMLInputElement).value;
-                props.onSessionKeyChange(v);
-              }}
-            />
-          </label>
-          <label class="field">
-            <span>${t("overview.access.language")}</span>
-            <select
-              .value=${currentLocale}
-              @change=${(e: Event) => {
-                const v = (e.target as HTMLSelectElement).value as Locale;
-                void i18n.setLocale(v);
-                props.onSettingsChange({ ...props.settings, locale: v });
-              }}
-            >
-              ${SUPPORTED_LOCALES.map((loc) => {
-                const key = loc.replace(/-([a-zA-Z])/g, (_, c) => c.toUpperCase());
-                return html`<option value=${loc} ?selected=${currentLocale === loc}>
-                  ${t(`languages.${key}`)}
-                </option>`;
-              })}
-            </select>
-          </label>
-        </div>
-        <div class="row" style="margin-top: 14px;">
-          <button class="btn" @click=${() => props.onConnect()}>${t("common.connect")}</button>
-          <button class="btn" @click=${() => props.onRefresh()}>${t("common.refresh")}</button>
-          <span class="muted"
-            >${isTrustedProxy
-              ? t("overview.access.trustedProxy")
-              : t("overview.access.connectHint")}</span
-          >
-        </div>
-        ${!props.connected
-          ? html`
-              <div class="login-gate__help" style="margin-top: 16px;">
-                <div class="login-gate__help-title">${t("overview.connection.title")}</div>
-                <ol class="login-gate__steps">
-                  <li>
-                    ${t("overview.connection.step1")}
-                    ${renderConnectCommand("granted gateway run")}
-                  </li>
-                  <li>
-                    ${t("overview.connection.step2")} ${renderConnectCommand("granted dashboard")}
-                  </li>
-                  <li>${t("overview.connection.step3")}</li>
-                  <li>
-                    ${t("overview.connection.step4")}<code
-                      >openclaw doctor --generate-gateway-token</code
-                    >
-                  </li>
-                </ol>
-                <div class="login-gate__docs">
-                  ${t("overview.connection.docsHint")}
-                  <a
-                    class="session-link"
-                    href="https://docs.openclaw.ai/web/dashboard"
-                    target="_blank"
-                    rel="noreferrer"
-                    >${t("overview.connection.docsLink")}</a
-                  >
-                </div>
-              </div>
-            `
-          : nothing}
-      </div>
-
       <div class="card">
         <div class="card-title">${t("overview.snapshot.title")}</div>
         <div class="card-sub">${t("overview.snapshot.subtitle")}</div>
@@ -394,17 +396,22 @@ export function renderOverview(props: OverviewProps) {
             </div>
           </div>
         </div>
-        ${props.lastError
-          ? html`<div class="callout danger" style="margin-top: 14px;">
-              <div>${props.lastError}</div>
+        ${(() => {
+          const friendly = humanizeGatewayError(props.lastError);
+          if (friendly) {
+            return html`<div class="callout danger" style="margin-top: 14px;" title=${friendly.raw}>
+              <div>${friendly.title}</div>
+              ${friendly.hint ? html`<div class="callout__hint">${friendly.hint}</div>` : ""}
               ${pairingHint ?? ""} ${authHint ?? ""} ${insecureContextHint ?? ""}
               ${queryTokenHint ?? ""}
-            </div>`
-          : html`
-              <div class="callout" style="margin-top: 14px">
-                ${t("overview.snapshot.channelsHint")}
-              </div>
-            `}
+            </div>`;
+          }
+          return html`
+            <div class="callout" style="margin-top: 14px">
+              ${t("overview.snapshot.channelsHint")}
+            </div>
+          `;
+        })()}
       </div>
     </section>
 
@@ -432,5 +439,16 @@ export function renderOverview(props: OverviewProps) {
         onRefreshLogs: props.onRefreshLogs,
       })}
     </div>
+
+    <div class="ov-section-divider"></div>
+
+    <details class="ov-access-details" ?open=${!props.connected}>
+      <summary class="ov-access-details__summary">
+        <span class="ov-access-details__chevron">${icons.chevronDown}</span>
+        ${t("overview.access.title")}
+        <span class="muted">${t("overview.access.subtitle")}</span>
+      </summary>
+      ${accessCard}
+    </details>
   `;
 }

@@ -1,5 +1,6 @@
 import { html, nothing } from "lit";
 import { t } from "../../i18n/index.ts";
+import { humanizeGatewayError } from "../connection-status.ts";
 import { formatRelativeTimestamp } from "../format.ts";
 import { icons } from "../icons.ts";
 import { pathForTab } from "../navigation.ts";
@@ -10,6 +11,7 @@ import type {
   SessionCompactionCheckpoint,
   SessionsListResult,
 } from "../types.ts";
+import { renderEmptyState } from "./empty-state.ts";
 
 export type SessionsProps = {
   loading: boolean;
@@ -57,7 +59,7 @@ export type SessionsProps = {
   onDeselectPage: (keys: string[]) => void;
   onDeselectAll: () => void;
   onDeleteSelected: () => void;
-  onNavigateToChat?: (sessionKey: string) => void;
+  onNavigateToChat?: (sessionKey?: string) => void;
   onToggleCheckpointDetails: (sessionKey: string) => void;
   onBranchFromCheckpoint: (sessionKey: string, checkpointId: string) => void | Promise<void>;
   onRestoreCheckpoint: (sessionKey: string, checkpointId: string) => void | Promise<void>;
@@ -330,9 +332,15 @@ export function renderSessions(props: SessionsProps) {
         </label>
       </div>
 
-      ${props.error
-        ? html`<div class="callout danger" style="margin-bottom: 12px;">${props.error}</div>`
-        : nothing}
+      ${(() => {
+        const friendly = humanizeGatewayError(props.error);
+        return friendly
+          ? html`<div class="callout danger" style="margin-bottom: 12px;" title=${friendly.raw}>
+              <div>${friendly.title}</div>
+              ${friendly.hint ? html`<div class="callout__hint">${friendly.hint}</div>` : nothing}
+            </div>`
+          : nothing;
+      })()}
 
       <div class="data-table-wrapper">
         <div class="data-table-toolbar">
@@ -403,11 +411,21 @@ export function renderSessions(props: SessionsProps) {
               ${paginated.length === 0
                 ? html`
                     <tr>
-                      <td
-                        colspan="11"
-                        style="text-align: center; padding: 48px 16px; color: var(--muted)"
-                      >
-                        No sessions found.
+                      <td colspan="11">
+                        ${renderEmptyState({
+                          icon: "messageSquare",
+                          title: t("emptyStates.sessions.title"),
+                          hint: t("emptyStates.sessions.hint"),
+                          action: html`<a
+                            class="btn btn--sm"
+                            href=${pathForTab("chat", props.basePath)}
+                            @click=${(e: Event) => {
+                              e.preventDefault();
+                              props.onNavigateToChat?.();
+                            }}
+                            >${t("emptyStates.sessions.action")}</a
+                          >`,
+                        })}
                       </td>
                     </tr>
                   `

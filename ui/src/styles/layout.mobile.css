@@ -7,14 +7,15 @@
   .shell,
   .shell--nav-collapsed {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: var(--shell-topbar-height) minmax(0, 1fr);
+    /* Let the row grow with the topbar so wrapped controls never overlap content. */
+    grid-template-rows: auto minmax(0, 1fr);
     grid-template-areas:
       "topbar"
       "content";
   }
 
   .shell--chat-focus {
-    grid-template-rows: var(--shell-topbar-height) minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
   }
 
   .shell-nav,
@@ -228,28 +229,57 @@
     --shell-gap: 8px;
   }
 
-  /* Topbar */
+  /* Topbar: one compact row — menu, page title, icon search, status. */
   .topbar {
-    padding: 10px 12px;
+    padding: 8px 12px;
     min-height: auto;
   }
 
   .topnav-shell {
-    flex-wrap: wrap;
-    gap: 10px;
+    flex-wrap: nowrap;
+    gap: 8px;
+    min-height: 0;
   }
 
   .topnav-shell__actions {
     min-width: 0;
-    flex: 1 1 auto;
-    justify-content: space-between;
-    gap: 10px;
-    align-items: stretch;
+    flex: 0 0 auto;
+    justify-content: flex-end;
+    gap: 8px;
+    align-items: center;
   }
 
   .topnav-shell__content {
+    display: flex;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  /* Only the current page name fits on small screens. */
+  .topnav-shell .dashboard-header__breadcrumb-link,
+  .topnav-shell .dashboard-header__breadcrumb-sep {
     display: none;
-    width: 100%;
+  }
+
+  .topnav-shell .dashboard-header__breadcrumb-current {
+    font-size: 15px;
+    color: var(--text-strong);
+  }
+
+  /* Search collapses to a round icon button. */
+  .topbar-search {
+    flex: 0 0 auto;
+    width: 38px;
+    min-width: 38px;
+    height: 38px;
+    justify-content: center;
+    padding: 0;
+    border-radius: var(--radius-full);
+  }
+
+  .topbar-search__label,
+  .topbar-search__kbd {
+    display: none;
   }
 
   .topbar-nav-toggle {
@@ -271,11 +301,6 @@
     gap: 6px;
     width: auto;
     flex-wrap: nowrap;
-  }
-
-  .topbar-search {
-    min-width: 0;
-    flex: 1;
   }
 
   .topbar-theme-mode {

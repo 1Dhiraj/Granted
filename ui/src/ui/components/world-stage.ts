@@ -282,9 +282,11 @@ export class WorldStage extends LitElement {
   @property({ attribute: false }) agents: GatewayAgentRow[] = [];
   @property() theme = "office";
   @property() basePath = "";
-  @property({ attribute: false }) workingAgentId: string | null = null;
+  @property({ attribute: false }) workingAgentIds: string[] = [];
   @property({ attribute: false }) selectedAgentId: string | null = null;
   @property({ attribute: false }) liveSnippet: string | null = null;
+  /** Agent whose live output feeds its bubble (the chat-session agent). */
+  @property({ attribute: false }) liveSnippetAgentId: string | null = null;
   @property({ attribute: false }) onAgentSelect?: (agentId: string) => void;
   @property({ attribute: false }) onThemeChange?: (theme: string) => void;
   @property({ attribute: false }) onStageClick?: () => void;
@@ -348,6 +350,10 @@ export class WorldStage extends LitElement {
         this.teleportedAt = Date.now();
       }
     }
+  }
+
+  private workingSet(): Set<string> {
+    return new Set(this.workingAgentIds);
   }
 
   private dist(ax: number, ay: number, bx: number, by: number): number {
@@ -429,10 +435,11 @@ export class WorldStage extends LitElement {
       }
     }
 
+    const workingSet = this.workingSet();
     this.agents.forEach((agent, index) => {
       const s = this.ensureSim(agent.id);
       s.deskIdx = Math.min(index, model.desks.length - 1);
-      const working = agent.id === this.workingAgentId;
+      const working = workingSet.has(agent.id);
 
       // Arrival bookkeeping.
       if (s.moveUntil !== 0 && now >= s.moveUntil) {
@@ -499,7 +506,7 @@ export class WorldStage extends LitElement {
       .filter(
         (entry): entry is { id: string; s: SimAgent } =>
           Boolean(entry.s) &&
-          entry.id !== this.workingAgentId &&
+          !workingSet.has(entry.id) &&
           entry.s!.moveUntil === 0 &&
           now >= entry.s!.chatUntil &&
           now >= entry.s!.chatCooldownUntil,
@@ -529,9 +536,10 @@ export class WorldStage extends LitElement {
 
   // ── Rendering ────────────────────────────────────────────────────────
 
-  private renderProp(prop: Prop, workingDeskIdx: number | null) {
+  private renderProp(prop: Prop, workingDeskIdxs: ReadonlySet<number>) {
     const isWorkstation = prop.kind === "desk" || prop.kind === "stump";
-    const active = isWorkstation && workingDeskIdx !== null && prop.deskIdx === workingDeskIdx;
+    const active =
+      isWorkstation && prop.deskIdx !== undefined && workingDeskIdxs.has(prop.deskIdx);
     // Each workstation belongs to one agent: its monitor carries the owner's
     // sprite hue, so "whose desk is this" is visible at a glance.
     let hue = 0;
@@ -555,7 +563,7 @@ export class WorldStage extends LitElement {
 
   private renderAgent(agent: GatewayAgentRow, now: number) {
     const s = this.ensureSim(agent.id);
-    const working = agent.id === this.workingAgentId;
+    const working = this.workingSet().has(agent.id);
     const selected = agent.id === this.selectedAgentId;
     const moving = s.moveUntil > now;
     const chatting = now < s.chatUntil;
@@ -566,7 +574,8 @@ export class WorldStage extends LitElement {
     const name = agentDisplayName(agent);
     let bubble: string | null = s.bubble;
     if (working) {
-      const snippet = (this.liveSnippet ?? "").trim();
+      const snippet =
+        agent.id === this.liveSnippetAgentId ? (this.liveSnippet ?? "").trim() : "";
       bubble = snippet ? snippet.slice(-64) : "working…";
     }
     const classes = [
@@ -694,11 +703,16 @@ export class WorldStage extends LitElement {
     const date = new Date(now);
     const phase = dayPhase(date);
     const time = date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-    const working = this.workingAgentId
-      ? this.agents.some((a) => a.id === this.workingAgentId)
-      : false;
-    const workingSim = this.workingAgentId ? this.sim.get(this.workingAgentId) : null;
-    const workingDeskIdx = working && workingSim ? workingSim.deskIdx : null;
+    const workingSet = this.workingSet();
+    const workingAgents = this.agents.filter((a) => workingSet.has(a.id));
+    const workingCount = workingAgents.length;
+    const workingDeskIdxs = new Set<number>();
+    for (const agent of workingAgents) {
+      const sim = this.sim.get(agent.id);
+      if (sim) {
+        workingDeskIdxs.add(sim.deskIdx);
+      }
+    }
     if (this.availW < 40) {
       return html`<div class="ws-viewport"></div>`;
     }
@@ -727,7 +741,7 @@ export class WorldStage extends LitElement {
                 <span class="ws-zone" style="left:${zone.x}%;top:${zone.y}%">${zone.label}</span>
               `,
             )}
-            ${model.props.map((prop) => this.renderProp(prop, workingDeskIdx))}
+            ${model.props.map((prop) => this.renderProp(prop, workingDeskIdxs))}
             ${this.agents.map((agent) => this.renderAgent(agent, now))}
             <div class="ws-tint"></div>
             ${this.renderParticles(phase)}
@@ -738,8 +752,8 @@ export class WorldStage extends LitElement {
           <span class="ws-hud-sep">·</span>
           <span>${this.agents.length} agent${this.agents.length === 1 ? "" : "s"}</span>
           <span class="ws-hud-sep">·</span>
-          <span class="${working ? "ws-hud-working" : ""}"
-            >${working ? "1 working" : "all idle"}</span
+          <span class="${workingCount > 0 ? "ws-hud-working" : ""}"
+            >${workingCount > 0 ? `${workingCount} working` : "all idle"}</span
           >
         </div>
         <div class="ws-themes">

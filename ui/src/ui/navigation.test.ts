@@ -71,8 +71,8 @@ describe("subtitleForTab", () => {
   });
 
   it("returns descriptive subtitles", () => {
-    expect(subtitleForTab("chat")).toContain("quick interventions");
-    expect(subtitleForTab("config")).toContain("openclaw.json");
+    expect(subtitleForTab("chat")).toContain("AI assistant");
+    expect(subtitleForTab("config")).toContain("settings file");
   });
 });
 

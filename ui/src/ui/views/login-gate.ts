@@ -1,6 +1,7 @@
 import { html } from "lit";
 import { t } from "../../i18n/index.ts";
 import type { AppViewState } from "../app-view-state.ts";
+import { humanizeGatewayError } from "../connection-status.ts";
 import { icons } from "../icons.ts";
 import { normalizeBasePath } from "../navigation.ts";
 import { agentLogoUrl } from "./agents-utils.ts";
@@ -100,24 +101,27 @@ export function renderLoginGate(state: AppViewState) {
             ${t("common.connect")}
           </button>
         </div>
-        ${state.lastError
-          ? html`<div class="callout danger" style="margin-top: 14px;">
-              <div>${state.lastError}</div>
-            </div>`
-          : ""}
+        ${(() => {
+          const friendly = humanizeGatewayError(state.lastError);
+          if (!friendly) {
+            return "";
+          }
+          return html`<div class="callout danger" style="margin-top: 14px;" title=${friendly.raw}>
+            <div>${friendly.title}</div>
+            ${friendly.hint ? html`<div class="callout__hint">${friendly.hint}</div>` : ""}
+          </div>`;
+        })()}
         <div class="login-gate__help">
           <div class="login-gate__help-title">${t("overview.connection.title")}</div>
           <ol class="login-gate__steps">
-            <li>
-              ${t("overview.connection.step1")}${renderConnectCommand("granted gateway run")}
-            </li>
+            <li>${t("overview.connection.step1")}${renderConnectCommand("granted gateway run")}</li>
             <li>${t("overview.connection.step2")} ${renderConnectCommand("granted dashboard")}</li>
             <li>${t("overview.connection.step3")}</li>
           </ol>
           <div class="login-gate__docs">
             <a
               class="session-link"
-              href="https://docs.openclaw.ai/web/dashboard"
+              href="https://github.com/1Dhiraj/granted/blob/main/docs/web/dashboard.md"
               target="_blank"
               rel="noreferrer"
               >${t("overview.connection.docsLink")}</a

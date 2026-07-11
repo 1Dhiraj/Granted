@@ -173,6 +173,7 @@ export type AppViewState = {
   presenceStatus: string | null;
   agentsLoading: boolean;
   agentsList: AgentsListResult | null;
+  agentsActiveIds: string[];
   agentsError: string | null;
   agentsSelectedId: string | null;
   // Create-agent wizard state (dashboard "New Agent" flow).
@@ -191,7 +192,7 @@ export type AppViewState = {
   toolsEffectiveResultKey: string | null;
   toolsEffectiveError: string | null;
   toolsEffectiveResult: import("./types.js").ToolsEffectiveResult | null;
-  agentsPanel: "overview" | "files" | "tools" | "skills" | "channels" | "cron";
+  agentsPanel: "overview" | "files" | "tools" | "skills" | "channels" | "cron" | "jobs";
   agentFilesLoading: boolean;
   agentFilesError: string | null;
   agentFilesList: AgentsFilesListResult | null;
@@ -199,6 +200,9 @@ export type AppViewState = {
   agentFileDrafts: Record<string, string>;
   agentFileActive: string | null;
   agentFileSaving: boolean;
+  agentJobsLoading: boolean;
+  agentJobsError: string | null;
+  agentJobsResult: import("./views/agents-panels-jobs.ts").AgentJobsResult | null;
   agentIdentityLoading: boolean;
   agentIdentityError: string | null;
   agentIdentityById: Record<string, AgentIdentityResult>;

@@ -35,6 +35,8 @@ export type WorldProps = {
   selectedAgentId: string | null;
   /** True while the active agent has a run in flight. */
   busy: boolean;
+  /** All agents with a run in flight right now (chat, cron, channels…). */
+  workingAgentIds: string[];
   /** Streaming assistant text for the active run, if any. */
   liveText: string | null;
   /** Recent compact activity entries for the active agent. */
@@ -90,7 +92,9 @@ function renderPanel(props: WorldProps) {
     return nothing;
   }
   const name = agentDisplayName(agent);
-  const working = props.activeAgentId === agent.id && props.busy;
+  const working =
+    (props.activeAgentId === agent.id && props.busy) ||
+    props.workingAgentIds.includes(agent.id);
   const canSend = props.promptValue.trim().length > 0 && !working;
   return html`
     <aside class="world-panel">
@@ -151,16 +155,20 @@ export function renderWorld(props: WorldProps) {
     `;
   }
   const panelOpen = Boolean(props.selectedAgentId);
-  const workingAgentId = props.busy ? props.activeAgentId : null;
+  const chatWorkingAgentId = props.busy ? props.activeAgentId : null;
+  const workingAgentIds = [
+    ...new Set([...props.workingAgentIds, ...(chatWorkingAgentId ? [chatWorkingAgentId] : [])]),
+  ];
   return html`
     <div class="world ${panelOpen ? "has-panel" : ""}">
       <world-stage
         .agents=${props.agents}
         .theme=${props.theme}
         .basePath=${props.basePath}
-        .workingAgentId=${workingAgentId}
+        .workingAgentIds=${workingAgentIds}
         .selectedAgentId=${props.selectedAgentId}
         .liveSnippet=${props.liveText}
+        .liveSnippetAgentId=${chatWorkingAgentId}
         .onAgentSelect=${(agentId: string) => props.onSelect(agentId)}
         .onThemeChange=${(theme: string) => props.onThemeChange(theme)}
         .onStageClick=${() => props.onClosePanel()}

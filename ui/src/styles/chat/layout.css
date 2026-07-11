@@ -823,8 +823,8 @@
 }
 
 .chat-controls__thinking-select {
-  min-width: 88px;
-  max-width: 118px;
+  min-width: 110px;
+  max-width: 156px;
 }
 
 .chat-controls__thinking {
@@ -859,7 +859,7 @@
 }
 
 .chat-controls__thinking-select select {
-  max-width: 118px;
+  max-width: 156px;
 }
 
 .chat-controls__thinking {

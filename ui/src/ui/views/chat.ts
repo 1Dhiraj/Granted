@@ -47,6 +47,7 @@ import {
   isWakeSupported,
   setWakePhrase,
 } from "../chat/wake-word.ts";
+import { humanizeGatewayError } from "../connection-status.ts";
 import { icons } from "../icons.ts";
 import { normalizeLowercaseStringOrEmpty } from "../string-coerce.ts";
 import { detectTextDirection } from "../text-direction.ts";
@@ -1182,7 +1183,16 @@ export function renderChat(props: ChatProps) {
       @dragover=${(e: DragEvent) => e.preventDefault()}
     >
       ${props.disabledReason ? html`<div class="callout">${props.disabledReason}</div>` : nothing}
-      ${props.error ? html`<div class="callout danger">${props.error}</div>` : nothing}
+      ${(() => {
+        const friendly = humanizeGatewayError(props.error);
+        if (!friendly) {
+          return nothing;
+        }
+        return html`<div class="callout danger" title=${friendly.raw}>
+          <div>${friendly.title}</div>
+          ${friendly.hint ? html`<div class="callout__hint">${friendly.hint}</div>` : nothing}
+        </div>`;
+      })()}
       ${props.focusMode
         ? html`
             <button

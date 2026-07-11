@@ -197,7 +197,8 @@ export const en: TranslationMap = {
       "This is the health page. Green means the gateway (the engine behind everything) is running. From here you can copy connection details, check instances and update Granted. If something feels broken, start here, then check Logs.",
     channels:
       "Channels connect your AI to messaging apps. Link WhatsApp by scanning a QR code, or add bot tokens for Telegram, Discord and others. Once linked, you can text your AI from your phone like any contact.",
-    instances: "Every app or device talking to your gateway shows up here with a heartbeat. Useful to confirm 'is my phone / browser / node actually connected right now?'",
+    instances:
+      "Every app or device talking to your gateway shows up here with a heartbeat. Useful to confirm 'is my phone / browser / node actually connected right now?'",
     sessions:
       "Every conversation lives in a session that remembers its context. Long sessions cost more and can get confused — reset one to start fresh, or delete old ones. Click a session to jump into that conversation.",
     usage:
@@ -214,14 +215,16 @@ export const en: TranslationMap = {
       "Model providers are the AI brains. Paste an API key (Anthropic, OpenAI, OpenRouter…) or use free local models with Ollama. Keys are stored on your machine — the dashboard only sends them to your own gateway.",
     communications:
       "Everything about how your AI communicates: which channels are enabled, message handling, broadcast lists, and voice — text-to-speech, talk mode and audio handling.",
-    appearance: "Visual and personal preferences: light/dark theme, dashboard language, UI details and the first-run wizard.",
+    appearance:
+      "Visual and personal preferences: light/dark theme, dashboard language, UI details and the first-run wizard.",
     automation:
       "Things that act on their own: custom commands, hooks that fire on events, scheduled jobs, plugins, and the approval rules for what agents may execute without asking you first.",
     infrastructure:
       "Plumbing settings: the gateway itself (port, auth), web access, the built-in browser agents use, media processing, and integrations like MCP.",
     aiAgents:
       "Global AI defaults that apply to all agents: which models to use (and fallbacks), tool availability, skill defaults, memory and session behavior. Individual agents can override these on the Agents page.",
-    debug: "Power tools for looking inside the gateway: state snapshots, live events and raw RPC calls. Handy when reporting a bug.",
+    debug:
+      "Power tools for looking inside the gateway: state snapshots, live events and raw RPC calls. Handy when reporting a bug.",
     logs: "The gateway's live diary. If something misbehaves, the reason usually shows up here first. Filter by level and watch entries stream in.",
     dreams:
       "While idle, your AI can 'dream': it reviews recent conversations, consolidates what matters into memory and reflects. Toggle it here and read the dream diary of what it learned.",
@@ -459,6 +462,9 @@ export const en: TranslationMap = {
       total: "Total",
       tokensByType: "Tokens by Type",
       costByType: "Cost by Type",
+      cacheSavings: "Saved by caching",
+      cacheSavingsHint:
+        "What the cached tokens would have cost at the plain input rate, minus what caching actually billed (including cache-write premiums).",
     },
     overview: {
       title: "Usage Overview",
@@ -594,6 +600,39 @@ export const en: TranslationMap = {
   login: {
     subtitle: "Gateway Dashboard",
     passwordPlaceholder: "optional",
+  },
+  emptyStates: {
+    sessions: {
+      title: "No conversations here yet",
+      hint: "Sessions show up once you or a connected channel starts chatting — or when you loosen the filters above.",
+      action: "Start chatting",
+    },
+    skills: {
+      title: "No skills match",
+      hint: "Try a different filter, or search ClawHub below to install new abilities.",
+    },
+    cronJobs: {
+      title: "Nothing scheduled yet",
+      hint: "Use the New Job form to set up reminders, reports, or any recurring task.",
+    },
+    cronRuns: {
+      title: "No runs yet",
+      hint: "Once a scheduled job fires, its history appears here.",
+    },
+  },
+  connection: {
+    lost: "Connection to the gateway was lost.",
+    lostHint: "It usually reconnects on its own. If not, check that the gateway is still running.",
+    notConnected: "Not connected to the gateway.",
+    unreachable: "Can't reach the gateway.",
+    unreachableHint: "Make sure the gateway is running, then try connecting again.",
+    authFailed: "The gateway rejected this sign-in.",
+    authHint: "Check your gateway token and try again.",
+    pairingRequired: "This device is waiting for approval.",
+    pairingHint: "Approve it on the gateway host, then reconnect.",
+    resyncing: "Connection interrupted — catching up…",
+    reconnect: "Reconnect",
+    dismiss: "Dismiss",
   },
   chat: {
     disconnected: "Disconnected from gateway.",

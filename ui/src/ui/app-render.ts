@@ -14,8 +14,11 @@ import {
 } from "./app-render.helpers.ts";
 import { warnQueryToken } from "./app-settings.ts";
 import type { AppViewState } from "./app-view-state.ts";
+import { normalizeMessage } from "./chat/message-normalizer.ts";
+import { humanizeGatewayError } from "./connection-status.ts";
 import { loadAgentFileContent, loadAgentFiles, saveAgentFile } from "./controllers/agent-files.ts";
 import { loadAgentIdentities, loadAgentIdentity } from "./controllers/agent-identity.ts";
+import { buildResumeJobMessage, loadAgentJobs } from "./controllers/agent-jobs.ts";
 import { loadAgentSkills } from "./controllers/agent-skills.ts";
 import {
   buildToolsEffectiveRequestKey,
@@ -79,14 +82,14 @@ import {
 } from "./controllers/exec-approvals.ts";
 import { loadLogs } from "./controllers/logs.ts";
 import { loadModels } from "./controllers/models.ts";
+import { loadNodes } from "./controllers/nodes.ts";
+import { loadPresence } from "./controllers/presence.ts";
 import {
   deleteProviderKey,
   listOllamaModels,
   loadProviders,
   saveProviderKey,
 } from "./controllers/providers.ts";
-import { loadNodes } from "./controllers/nodes.ts";
-import { loadPresence } from "./controllers/presence.ts";
 import {
   branchSessionFromCheckpoint,
   deleteSessionsAndRefresh,
@@ -108,9 +111,9 @@ import {
   updateSkillEnabled,
 } from "./controllers/skills.ts";
 import { buildExternalLinkRel, EXTERNAL_LINK_TARGET } from "./external-link.ts";
-import { icons } from "./icons.ts";
 import "./components/dashboard-header.ts";
-import { normalizeBasePath, TAB_GROUPS, subtitleForTab, titleForTab } from "./navigation.ts";
+import { icons } from "./icons.ts";
+import { TAB_GROUPS, subtitleForTab, titleForTab } from "./navigation.ts";
 import {
   buildAgentMainSessionKey,
   parseAgentSessionKey,
@@ -128,7 +131,6 @@ import {
   resolveModelPrimary,
   sortLocaleStrings,
 } from "./views/agents-utils.ts";
-import { normalizeMessage } from "./chat/message-normalizer.ts";
 import { renderChat } from "./views/chat.ts";
 import { renderCommandPalette } from "./views/command-palette.ts";
 import { renderConfig } from "./views/config.ts";
@@ -408,7 +410,6 @@ export function renderApp(state: AppViewState) {
       await loadDreamingStatus(state);
     })();
   };
-  const basePath = normalizeBasePath(state.basePath ?? "");
   const resolvedAgentId =
     state.agentsSelectedId ??
     state.agentsList?.defaultId ??
@@ -624,7 +625,7 @@ export function renderApp(state: AppViewState) {
               <div class="sidebar-utility-group">
                 <a
                   class="nav-item nav-item--external sidebar-utility-link"
-                  href="https://docs.openclaw.ai"
+                  href="https://github.com/1Dhiraj/granted#readme"
                   target=${EXTERNAL_LINK_TARGET}
                   rel=${buildExternalLinkRel()}
                   title="${t("common.docs")} (opens in new tab)"
@@ -770,9 +771,31 @@ export function renderApp(state: AppViewState) {
                       </div>
                     `
                   : nothing}
-                ${state.lastError
-                  ? html`<div class="pill danger">${state.lastError}</div>`
-                  : nothing}
+                ${(() => {
+                  // Chat renders its own inline error callout; avoid doubling up.
+                  if (isChat) {
+                    return nothing;
+                  }
+                  const friendly = humanizeGatewayError(state.lastError);
+                  if (!friendly) {
+                    return nothing;
+                  }
+                  return html`<div class="pill danger pill--dismissible" title=${friendly.raw}>
+                    <span class="pill__text">${friendly.title}</span>
+                    <button
+                      type="button"
+                      class="pill__dismiss"
+                      title=${t("connection.dismiss")}
+                      aria-label=${t("connection.dismiss")}
+                      @click=${() => {
+                        state.lastError = null;
+                        state.lastErrorCode = null;
+                      }}
+                    >
+                      ${icons.x}
+                    </button>
+                  </div>`;
+                })()}
                 ${isChat ? renderChatControls(state) : nothing}
               </div>
             </section>`}
@@ -958,7 +981,9 @@ export function renderApp(state: AppViewState) {
                   }
                 },
                 onNavigateToChat: (sessionKey) => {
-                  switchChatSession(state, sessionKey);
+                  if (sessionKey) {
+                    switchChatSession(state, sessionKey);
+                  }
                   state.setTab("chat" as import("./navigation.ts").Tab);
                 },
                 onToggleCheckpointDetails: (sessionKey) =>
@@ -1115,6 +1140,12 @@ export function renderApp(state: AppViewState) {
                   drafts: state.agentFileDrafts,
                   saving: state.agentFileSaving,
                 },
+                agentJobs: {
+                  loading: state.agentJobsLoading,
+                  error: state.agentJobsError,
+                  result: state.agentJobsResult,
+                },
+                agentWorkingIds: state.agentsActiveIds,
                 agentIdentityLoading: state.agentIdentityLoading,
                 agentIdentityError: state.agentIdentityError,
                 agentIdentityById: state.agentIdentityById,
@@ -1262,6 +1293,9 @@ export function renderApp(state: AppViewState) {
                   if (panel === "cron") {
                     void state.loadCron();
                   }
+                  if (panel === "jobs" && resolvedAgentId) {
+                    void loadAgentJobs(state, resolvedAgentId);
+                  }
                 },
                 onLoadFiles: (agentId) => loadAgentFiles(state, agentId),
                 onSelectFile: (name) => {
@@ -1332,6 +1366,30 @@ export function renderApp(state: AppViewState) {
                     return;
                   }
                   void runCronJob(state, job, "force");
+                },
+                onJobsRefresh: () => {
+                  if (resolvedAgentId) {
+                    void loadAgentJobs(state, resolvedAgentId);
+                  }
+                },
+                onJobResume: (agentId, jobName) => {
+                  // Point the chat session at this agent, send the resume
+                  // instruction, then jump to chat so the user can watch.
+                  const targetKey = buildAgentMainSessionKey({ agentId });
+                  if (state.sessionKey !== targetKey) {
+                    state.sessionKey = targetKey;
+                    state.chatMessages = [];
+                    state.chatStream = null;
+                    state.chatRunId = null;
+                    state.applySettings({
+                      ...state.settings,
+                      sessionKey: targetKey,
+                      lastActiveSessionKey: targetKey,
+                    });
+                    void state.loadAssistantIdentity();
+                  }
+                  void state.handleSendChat(buildResumeJobMessage(jobName));
+                  state.setTab("chat" as import("./navigation.ts").Tab);
                 },
                 onSkillsFilterChange: (next) => (state.skillsFilter = next),
                 onSkillsRefresh: () => {
@@ -2387,6 +2445,7 @@ export function renderApp(state: AppViewState) {
                 agents: state.agentsList?.agents ?? [],
                 loading: state.agentsLoading,
                 basePath: state.basePath ?? "",
+                workingAgentIds: state.agentsActiveIds,
                 // Light up the avatar that the live session targets — the
                 // raw selected id when the session key resolves to it.
                 activeAgentId:
