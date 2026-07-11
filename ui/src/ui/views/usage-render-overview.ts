@@ -376,6 +376,16 @@ function renderCostBreakdownCompact(totals: UsageTotals, mode: "tokens" | "cost"
         ${t("usage.breakdown.total")}:
         ${isTokenMode ? formatTokens(totals.totalTokens) : formatCost(totals.totalCost)}
       </div>
+      ${!isTokenMode && (totals.cacheSavings ?? 0) >= 0.01
+        ? html`
+            <div
+              class="cost-breakdown-total cache-savings"
+              title=${t("usage.breakdown.cacheSavingsHint")}
+            >
+              ${t("usage.breakdown.cacheSavings")}: ${formatCost(totals.cacheSavings ?? 0)}
+            </div>
+          `
+        : nothing}
     </div>
   `;
 }

@@ -204,6 +204,39 @@ const applyCostBreakdown = (totals: CostUsageTotals, costBreakdown: CostBreakdow
   totals.cacheWriteCost += costBreakdown.cacheWrite ?? 0;
 };
 
+/**
+ * Accumulate USD saved by prompt caching: what the cached tokens would have
+ * cost at the plain input rate minus what they were actually billed at
+ * (cache-write premiums count against savings). Skipped when model rates
+ * cannot be resolved, so the stat stays honest rather than estimated.
+ */
+const applyCacheSavings = (
+  totals: CostUsageTotals,
+  entry: { usage?: NormalizedUsage; provider?: string; model?: string },
+  config?: OpenClawConfig,
+) => {
+  const cacheRead = entry.usage?.cacheRead ?? 0;
+  const cacheWrite = entry.usage?.cacheWrite ?? 0;
+  if (cacheRead === 0 && cacheWrite === 0) {
+    return;
+  }
+  const cost = resolveModelCostConfig({
+    provider: entry.provider,
+    model: entry.model,
+    config,
+  });
+  if (!cost) {
+    return;
+  }
+  const savings =
+    (cacheRead * (cost.input - cost.cacheRead) + cacheWrite * (cost.input - cost.cacheWrite)) /
+    1_000_000;
+  if (!Number.isFinite(savings)) {
+    return;
+  }
+  totals.cacheSavings = (totals.cacheSavings ?? 0) + savings;
+};
+
 // Legacy function for backwards compatibility (no cost breakdown available)
 const applyCostTotal = (totals: CostUsageTotals, costTotal: number | undefined) => {
   if (costTotal === undefined) {
@@ -414,6 +447,7 @@ export async function loadCostUsageSummary(params?: {
         } else {
           applyCostTotal(bucket, entry.costTotal);
         }
+        applyCacheSavings(bucket, entry, params?.config);
         dailyMap.set(dayKey, bucket);
 
         applyUsageTotals(totals, entry.usage);
@@ -422,6 +456,7 @@ export async function loadCostUsageSummary(params?: {
         } else {
           applyCostTotal(totals, entry.costTotal);
         }
+        applyCacheSavings(totals, entry, params?.config);
 
         const entryCost = entry.costBreakdown?.total ?? entry.costTotal;
         if (entry.provider && entryCost !== undefined) {
@@ -693,6 +728,7 @@ export async function loadSessionCostSummary(params: {
       } else {
         applyCostTotal(totals, entry.costTotal);
       }
+      applyCacheSavings(totals, entry, params.config);
 
       if (entry.timestamp) {
         const dayKey = formatDayKey(entry.timestamp);

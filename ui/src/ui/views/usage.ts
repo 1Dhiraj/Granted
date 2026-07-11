@@ -1,5 +1,6 @@
 import { html, nothing } from "lit";
 import { t } from "../../i18n/index.ts";
+import { humanizeGatewayError } from "../connection-status.ts";
 import { extractQueryTerms, filterSessionsByQuery } from "../usage-helpers.ts";
 import {
   buildAggregatesFromSessions,
@@ -438,11 +439,6 @@ export function renderUsage(props: UsageProps) {
 
   return html`
     <div class="usage-page">
-      <section class="usage-page-header">
-        <div class="usage-page-title">${t("tabs.usage")}</div>
-        <div class="usage-page-subtitle">${t("usage.page.subtitle")}</div>
-      </section>
-
       <section class="card usage-header ${display.headerPinned ? "pinned" : ""}">
         <div class="usage-header-row">
           <div class="usage-header-title">
@@ -730,9 +726,16 @@ export function renderUsage(props: UsageProps) {
             : nothing}
         </div>
 
-        ${data.error
-          ? html`<div class="callout danger usage-callout">${data.error}</div>`
-          : nothing}
+        ${(() => {
+          const friendly = humanizeGatewayError(data.error);
+          if (!friendly) {
+            return nothing;
+          }
+          return html`<div class="callout danger usage-callout" title=${friendly.raw}>
+            <div>${friendly.title}</div>
+            ${friendly.hint ? html`<div class="callout__hint">${friendly.hint}</div>` : nothing}
+          </div>`;
+        })()}
         ${data.sessionsLimitReached
           ? html`
               <div class="callout warning usage-callout">${t("usage.sessions.limitReached")}</div>

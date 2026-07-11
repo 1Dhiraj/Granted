@@ -121,6 +121,93 @@ describe("session cost usage", () => {
     });
   });
 
+  it("computes cache savings from model rates, net of cache-write premiums", async () => {
+    const root = await makeSessionCostRoot("cache-savings");
+    const sessionsDir = path.join(root, "agents", "main", "sessions");
+    await fs.mkdir(sessionsDir, { recursive: true });
+    const sessionFile = path.join(sessionsDir, "sess-cache.jsonl");
+    const now = new Date();
+
+    const entries = [
+      {
+        type: "message",
+        timestamp: now.toISOString(),
+        message: {
+          role: "assistant",
+          provider: "deepseek",
+          model: "deepseek-chat",
+          usage: {
+            input: 100_000,
+            output: 1_000,
+            cacheRead: 1_000_000,
+            cacheWrite: 1_000_000,
+            totalTokens: 2_101_000,
+            cost: { total: 0.1 },
+          },
+        },
+      },
+      {
+        // No rates configured for this model: entry must not contribute savings.
+        type: "message",
+        timestamp: now.toISOString(),
+        message: {
+          role: "assistant",
+          provider: "unknown-provider",
+          model: "mystery-model",
+          usage: {
+            input: 10,
+            output: 10,
+            cacheRead: 500_000,
+            totalTokens: 500_020,
+            cost: { total: 0.05 },
+          },
+        },
+      },
+    ];
+
+    await fs.writeFile(
+      sessionFile,
+      entries.map((entry) => JSON.stringify(entry)).join("\n"),
+      "utf-8",
+    );
+
+    const config = {
+      models: {
+        providers: {
+          deepseek: {
+            models: [
+              {
+                id: "deepseek-chat",
+                cost: {
+                  input: 1,
+                  output: 2,
+                  cacheRead: 0.1,
+                  cacheWrite: 1.25,
+                },
+              },
+            ],
+          },
+        },
+      },
+    } as unknown as OpenClawConfig;
+
+    // cacheRead: 1M tokens at input rate $1/M would cost $1.00, billed $0.10 → +$0.90
+    // cacheWrite: 1M tokens billed $1.25 vs $1.00 as plain input → −$0.25
+    const expectedSavings = 0.9 - 0.25;
+
+    await withStateDir(root, async () => {
+      const summary = await loadCostUsageSummary({ days: 30, config });
+      expect(summary.totals.cacheSavings).toBeCloseTo(expectedSavings, 5);
+      expect(summary.daily[0]?.cacheSavings).toBeCloseTo(expectedSavings, 5);
+
+      const sessionSummary = await loadSessionCostSummary({
+        sessionFile,
+        config,
+      });
+      expect(sessionSummary?.cacheSavings).toBeCloseTo(expectedSavings, 5);
+    });
+  });
+
   it("breaks down cumulative cost per provider for budget enforcement", async () => {
     const root = await makeSessionCostRoot("cost-provider");
     const sessionsDir = path.join(root, "agents", "main", "sessions");

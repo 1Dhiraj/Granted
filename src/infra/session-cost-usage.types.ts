@@ -49,6 +49,12 @@ export type CostUsageTotals = {
   cacheReadCost: number;
   cacheWriteCost: number;
   missingCostEntries: number;
+  /**
+   * USD saved by prompt caching vs billing the same tokens at the plain input
+   * rate (cache-write premiums subtracted). Undefined when model rates were
+   * unavailable for every entry in range.
+   */
+  cacheSavings?: number;
 };
 
 export type CostUsageDailyEntry = CostUsageTotals & {
