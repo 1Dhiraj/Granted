@@ -154,5 +154,6 @@ export type ChatAbortParams = SchemaType<"ChatAbortParams">;
 export type ChatInjectParams = SchemaType<"ChatInjectParams">;
 export type ChatEvent = SchemaType<"ChatEvent">;
 export type UpdateRunParams = SchemaType<"UpdateRunParams">;
+export type GatewayRestartParams = SchemaType<"GatewayRestartParams">;
 export type TickEvent = SchemaType<"TickEvent">;
 export type ShutdownEvent = SchemaType<"ShutdownEvent">;

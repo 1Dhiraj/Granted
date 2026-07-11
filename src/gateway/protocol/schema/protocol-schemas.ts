@@ -69,6 +69,7 @@ import {
   ConfigSchemaParamsSchema,
   ConfigSchemaResponseSchema,
   ConfigSetParamsSchema,
+  GatewayRestartParamsSchema,
   UpdateRunParamsSchema,
 } from "./config.js";
 import {
@@ -350,6 +351,7 @@ export const ProtocolSchemas = {
   ChatInjectParams: ChatInjectParamsSchema,
   ChatEvent: ChatEventSchema,
   UpdateRunParams: UpdateRunParamsSchema,
+  GatewayRestartParams: GatewayRestartParamsSchema,
   TickEvent: TickEventSchema,
   ShutdownEvent: ShutdownEventSchema,
 } satisfies Record<string, TSchema>;

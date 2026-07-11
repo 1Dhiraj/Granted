@@ -9,7 +9,6 @@ import {
 } from "../../infra/ports.js";
 import { killProcessTree } from "../../process/kill-tree.js";
 import {
-  normalizeLowercaseStringOrEmpty,
   normalizeOptionalString,
 } from "../../shared/string-coerce.js";
 import { sleep } from "../../utils.js";
@@ -55,18 +54,12 @@ function listenerOwnedByRuntimePid(params: {
   return params.listener.pid === params.runtimePid || params.listener.ppid === params.runtimePid;
 }
 
-function looksLikeAuthClose(code: number | undefined, reason: string | undefined): boolean {
-  if (code !== 1008) {
-    return false;
-  }
-  const normalized = normalizeLowercaseStringOrEmpty(reason);
-  return (
-    normalized.includes("auth") ||
-    normalized.includes("token") ||
-    normalized.includes("password") ||
-    normalized.includes("scope") ||
-    normalized.includes("role")
-  );
+function looksLikeGatewayPolicyClose(code: number | undefined): boolean {
+  // A 1008 policy close can only come from a live gateway that completed the
+  // WebSocket handshake and rejected the connect attempt (auth, device
+  // identity, scopes, ...). For restart health we only need proof of life, so
+  // any policy close counts as reachable regardless of the reject reason.
+  return code === 1008;
 }
 
 async function confirmGatewayReachable(port: number): Promise<boolean> {
@@ -78,7 +71,7 @@ async function confirmGatewayReachable(port: number): Promise<boolean> {
     timeoutMs: 3_000,
     includeDetails: false,
   });
-  return probe.ok || looksLikeAuthClose(probe.close?.code, probe.close?.reason);
+  return probe.ok || looksLikeGatewayPolicyClose(probe.close?.code);
 }
 
 async function inspectGatewayPortHealth(port: number): Promise<GatewayPortHealthSnapshot> {

@@ -138,6 +138,8 @@ import {
   errorShape,
   type GatewayFrame,
   GatewayFrameSchema,
+  type GatewayRestartParams,
+  GatewayRestartParamsSchema,
   type HelloOk,
   HelloOkSchema,
   type LogsTailParams,
@@ -495,6 +497,9 @@ export const validateChatAbortParams = ajv.compile<ChatAbortParams>(ChatAbortPar
 export const validateChatInjectParams = ajv.compile<ChatInjectParams>(ChatInjectParamsSchema);
 export const validateChatEvent = ajv.compile(ChatEventSchema);
 export const validateUpdateRunParams = ajv.compile<UpdateRunParams>(UpdateRunParamsSchema);
+export const validateGatewayRestartParams = ajv.compile<GatewayRestartParams>(
+  GatewayRestartParamsSchema,
+);
 export const validateWebLoginStartParams =
   ajv.compile<WebLoginStartParams>(WebLoginStartParamsSchema);
 export const validateWebLoginWaitParams = ajv.compile<WebLoginWaitParams>(WebLoginWaitParamsSchema);
@@ -653,6 +658,7 @@ export {
   ChatSendParamsSchema,
   ChatInjectParamsSchema,
   UpdateRunParamsSchema,
+  GatewayRestartParamsSchema,
   TickEventSchema,
   ShutdownEventSchema,
   ProtocolSchemas,
@@ -777,5 +783,6 @@ export type {
   LogsTailResult,
   PollParams,
   UpdateRunParams,
+  GatewayRestartParams,
   ChatInjectParams,
 };

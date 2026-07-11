@@ -29,6 +29,7 @@ import { talkHandlers } from "./server-methods/talk.js";
 import { toolsCatalogHandlers } from "./server-methods/tools-catalog.js";
 import { toolsEffectiveHandlers } from "./server-methods/tools-effective.js";
 import { ttsHandlers } from "./server-methods/tts.js";
+import { gatewayRestartHandlers } from "./server-methods/gateway-restart.js";
 import type { GatewayRequestHandlers, GatewayRequestOptions } from "./server-methods/types.js";
 import { updateHandlers } from "./server-methods/update.js";
 import { usageHandlers } from "./server-methods/usage.js";
@@ -36,7 +37,12 @@ import { voicewakeHandlers } from "./server-methods/voicewake.js";
 import { webHandlers } from "./server-methods/web.js";
 import { wizardHandlers } from "./server-methods/wizard.js";
 
-const CONTROL_PLANE_WRITE_METHODS = new Set(["config.apply", "config.patch", "update.run"]);
+const CONTROL_PLANE_WRITE_METHODS = new Set([
+  "config.apply",
+  "config.patch",
+  "update.run",
+  "gateway.restart",
+]);
 function authorizeGatewayMethod(method: string, client: GatewayRequestOptions["client"]) {
   if (!client?.connect) {
     return null;
@@ -90,6 +96,7 @@ export const coreGatewayHandlers: GatewayRequestHandlers = {
   ...sessionsHandlers,
   ...systemHandlers,
   ...updateHandlers,
+  ...gatewayRestartHandlers,
   ...nodeHandlers,
   ...nodePendingHandlers,
   ...pushHandlers,

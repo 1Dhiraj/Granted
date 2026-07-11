@@ -71,15 +71,28 @@ function resolveGatewayPortFallback(): Promise<number> {
     .catch(() => resolveGatewayPort(undefined, process.env));
 }
 
-async function assertUnmanagedGatewayRestartEnabled(port: number): Promise<void> {
+async function resolveUnmanagedGatewayEndpoint(port: number): Promise<{
+  url: string;
+  token?: string;
+  password?: string;
+}> {
   const cfg = await readBestEffortConfig().catch(() => undefined);
   const tlsEnabled = !!cfg?.gateway?.tls?.enabled;
   const scheme = tlsEnabled ? "wss" : "ws";
-  const probe = await probeGateway({
+  return {
     url: `${scheme}://127.0.0.1:${port}`,
+    token: normalizeOptionalString(process.env.OPENCLAW_GATEWAY_TOKEN),
+    password: normalizeOptionalString(process.env.OPENCLAW_GATEWAY_PASSWORD),
+  };
+}
+
+async function assertUnmanagedGatewayRestartEnabled(port: number): Promise<void> {
+  const endpoint = await resolveUnmanagedGatewayEndpoint(port);
+  const probe = await probeGateway({
+    url: endpoint.url,
     auth: {
-      token: normalizeOptionalString(process.env.OPENCLAW_GATEWAY_TOKEN),
-      password: normalizeOptionalString(process.env.OPENCLAW_GATEWAY_PASSWORD),
+      token: endpoint.token,
+      password: endpoint.password,
     },
     timeoutMs: 1_000,
   }).catch(() => null);
@@ -124,6 +137,30 @@ async function restartGatewayWithoutServiceManager(port: number) {
     throw new Error(
       `multiple gateway processes are listening on port ${port}: ${formatGatewayPidList(pids)}; use "openclaw gateway status --deep" before retrying restart`,
     );
+  }
+  if (process.platform === "win32") {
+    // Windows cannot deliver SIGUSR1 to another process (process.kill throws
+    // ERR_UNKNOWN_SIGNAL), so request the same in-process restart over the
+    // gateway control channel instead. Let callGateway resolve the target and
+    // auth from config like every other local CLI gateway command.
+    const { callGateway } = await import("../../gateway/call.js");
+    try {
+      await callGateway({
+        method: "gateway.restart",
+        params: { reason: "cli gateway restart" },
+        timeoutMs: 10_000,
+      });
+    } catch (err) {
+      throw new Error(
+        `gateway restart request over the control channel failed: ${err instanceof Error ? err.message : String(err)}. ` +
+          `Run "${formatCliCommand("openclaw gateway stop")}" then "${formatCliCommand("openclaw gateway run")}" instead.`,
+        { cause: err },
+      );
+    }
+    return {
+      result: "restarted" as const,
+      message: `Gateway restart requested via control channel for unmanaged process on port ${port}: ${pids[0]}.`,
+    };
   }
   signalVerifiedGatewayPidSync(pids[0], "SIGUSR1");
   return {

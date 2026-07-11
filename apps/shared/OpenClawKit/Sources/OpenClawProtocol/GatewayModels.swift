@@ -2509,20 +2509,29 @@ public struct AgentSummary: Codable, Sendable {
 
 public struct AgentsCreateParams: Codable, Sendable {
     public let name: String
-    public let workspace: String
+    public let workspace: String?
     public let emoji: String?
     public let avatar: String?
+    public let purpose: String?
+    public let model: String?
+    public let tools: [String]?
 
     public init(
         name: String,
-        workspace: String,
+        workspace: String?,
         emoji: String?,
-        avatar: String?)
+        avatar: String?,
+        purpose: String?,
+        model: String?,
+        tools: [String]?)
     {
         self.name = name
         self.workspace = workspace
         self.emoji = emoji
         self.avatar = avatar
+        self.purpose = purpose
+        self.model = model
+        self.tools = tools
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -2530,6 +2539,9 @@ public struct AgentsCreateParams: Codable, Sendable {
         case workspace
         case emoji
         case avatar
+        case purpose
+        case model
+        case tools
     }
 }
 
@@ -4228,6 +4240,32 @@ public struct UpdateRunParams: Codable, Sendable {
         case note
         case restartdelayms = "restartDelayMs"
         case timeoutms = "timeoutMs"
+    }
+}
+
+public struct GatewayRestartParams: Codable, Sendable {
+    public let sessionkey: String?
+    public let note: String?
+    public let reason: String?
+    public let restartdelayms: Int?
+
+    public init(
+        sessionkey: String?,
+        note: String?,
+        reason: String?,
+        restartdelayms: Int?)
+    {
+        self.sessionkey = sessionkey
+        self.note = note
+        self.reason = reason
+        self.restartdelayms = restartdelayms
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case sessionkey = "sessionKey"
+        case note
+        case reason
+        case restartdelayms = "restartDelayMs"
     }
 }
 

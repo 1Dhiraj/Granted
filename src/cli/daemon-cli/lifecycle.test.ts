@@ -52,6 +52,11 @@ const probeGateway = vi.fn<
 const isRestartEnabled = vi.fn<(config?: { commands?: unknown }) => boolean>(() => true);
 const loadConfig = vi.hoisted(() => vi.fn(() => ({})));
 const recoverInstalledLaunchAgent = vi.hoisted(() => vi.fn());
+const callGateway = vi.hoisted(() => vi.fn());
+
+vi.mock("../../gateway/call.js", () => ({
+  callGateway: (...args: unknown[]) => callGateway(...args),
+}));
 
 vi.mock("../../config/config.js", () => ({
   loadConfig: () => loadConfig(),
@@ -159,6 +164,8 @@ describe("runDaemonRestart health checks", () => {
     isRestartEnabled.mockReset();
     loadConfig.mockReset();
     recoverInstalledLaunchAgent.mockReset();
+    callGateway.mockReset();
+    callGateway.mockResolvedValue({ ok: true });
 
     service.readCommand.mockResolvedValue({
       programArguments: ["openclaw", "gateway", "--port", "18789"],
@@ -327,6 +334,7 @@ describe("runDaemonRestart health checks", () => {
   });
 
   it("signals a single unmanaged gateway process on restart", async () => {
+    vi.spyOn(process, "platform", "get").mockReturnValue("linux");
     findVerifiedGatewayListenerPidsOnPortSync.mockReturnValue([4200]);
     mockUnmanagedRestart({ runPostRestartCheck: true });
 
@@ -339,6 +347,32 @@ describe("runDaemonRestart health checks", () => {
     expect(waitForGatewayHealthyRestart).not.toHaveBeenCalled();
     expect(terminateStaleGatewayPids).not.toHaveBeenCalled();
     expect(service.restart).not.toHaveBeenCalled();
+  });
+
+  it("restarts an unmanaged gateway via the control channel on Windows", async () => {
+    vi.spyOn(process, "platform", "get").mockReturnValue("win32");
+    findVerifiedGatewayListenerPidsOnPortSync.mockReturnValue([4200]);
+    mockUnmanagedRestart({ runPostRestartCheck: true });
+
+    await runDaemonRestart({ json: true });
+
+    expect(callGateway).toHaveBeenCalledWith(
+      expect.objectContaining({ method: "gateway.restart" }),
+    );
+    expect(signalVerifiedGatewayPidSync).not.toHaveBeenCalled();
+    expect(waitForGatewayHealthyListener).toHaveBeenCalledTimes(1);
+  });
+
+  it("fails with stop/run guidance when the Windows control-channel restart request fails", async () => {
+    vi.spyOn(process, "platform", "get").mockReturnValue("win32");
+    findVerifiedGatewayListenerPidsOnPortSync.mockReturnValue([4200]);
+    callGateway.mockRejectedValue(new Error("connect refused"));
+    mockUnmanagedRestart();
+
+    await expect(runDaemonRestart({ json: true })).rejects.toThrow(
+      /control channel failed: connect refused/,
+    );
+    expect(signalVerifiedGatewayPidSync).not.toHaveBeenCalled();
   });
 
   it("prefers unmanaged restart over launchd repair when a gateway listener is present", async () => {
