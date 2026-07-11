@@ -31,7 +31,7 @@ describe("config io audit helpers", () => {
       } as NodeJS.ProcessEnv,
       () => home,
     );
-    expect(auditPath).toBe(path.join(home, ".openclaw", "logs", "config-audit.jsonl"));
+    expect(auditPath).toBe(path.join(home, ".granted", "logs", "config-audit.jsonl"));
     expect(auditPath.startsWith(path.resolve("undefined"))).toBe(false);
   });
 
@@ -151,7 +151,7 @@ describe("config io audit helpers", () => {
     const home = await suiteRootTracker.make("append");
     const record = finalizeConfigWriteAuditRecord({
       base: createConfigWriteAuditRecordBase({
-        configPath: path.join(home, ".openclaw", "openclaw.json"),
+        configPath: path.join(home, ".granted", "granted.json"),
         env: {} as NodeJS.ProcessEnv,
         existsBefore: true,
         previousHash: "prev-hash",
@@ -192,7 +192,7 @@ describe("config io audit helpers", () => {
       record,
     });
 
-    const auditPath = path.join(home, ".openclaw", "logs", "config-audit.jsonl");
+    const auditPath = path.join(home, ".granted", "logs", "config-audit.jsonl");
     const lines = fs.readFileSync(auditPath, "utf-8").trim().split("\n");
     expect(lines).toHaveLength(1);
     expect(JSON.parse(lines[0])).toMatchObject({
@@ -206,7 +206,7 @@ describe("config io audit helpers", () => {
     const home = await suiteRootTracker.make("append-flat");
     const record = finalizeConfigWriteAuditRecord({
       base: createConfigWriteAuditRecordBase({
-        configPath: path.join(home, ".openclaw", "openclaw.json"),
+        configPath: path.join(home, ".granted", "granted.json"),
         env: {} as NodeJS.ProcessEnv,
         existsBefore: true,
         previousHash: "prev-hash",
@@ -247,7 +247,7 @@ describe("config io audit helpers", () => {
       ...record,
     });
 
-    const auditPath = path.join(home, ".openclaw", "logs", "config-audit.jsonl");
+    const auditPath = path.join(home, ".granted", "logs", "config-audit.jsonl");
     const lines = fs.readFileSync(auditPath, "utf-8").trim().split("\n");
     expect(lines).toHaveLength(1);
     expect(JSON.parse(lines[0])).toMatchObject({

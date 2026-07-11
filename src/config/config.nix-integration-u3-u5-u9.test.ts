@@ -54,7 +54,7 @@ describe("Nix integration (U3, U5, U9)", () => {
       const customHome = path.join(path.sep, "custom", "home");
       expect(
         resolveStateDir(envWith({ OPENCLAW_HOME: customHome, OPENCLAW_STATE_DIR: undefined })),
-      ).toBe(path.join(path.resolve(customHome), ".openclaw"));
+      ).toBe(path.join(path.resolve(customHome), ".granted"));
     });
 
     it("CONFIG_PATH defaults to OPENCLAW_HOME/.openclaw/openclaw.json", () => {
@@ -67,7 +67,7 @@ describe("Nix integration (U3, U5, U9)", () => {
             OPENCLAW_STATE_DIR: undefined,
           }),
         ),
-      ).toBe(path.join(path.resolve(customHome), ".openclaw", "openclaw.json"));
+      ).toBe(path.join(path.resolve(customHome), ".granted", "granted.json"));
     });
 
     it("CONFIG_PATH defaults to ~/.openclaw/openclaw.json when env not set", () => {
@@ -103,7 +103,7 @@ describe("Nix integration (U3, U5, U9)", () => {
           envWith({ OPENCLAW_STATE_DIR: "/custom/state", OPENCLAW_TEST_FAST: "1" }),
           () => path.join(path.sep, "tmp", "openclaw-config-home"),
         ),
-      ).toBe(path.join(path.resolve("/custom/state"), "openclaw.json"));
+      ).toBe(path.join(path.resolve("/custom/state"), "granted.json"));
     });
   });
 

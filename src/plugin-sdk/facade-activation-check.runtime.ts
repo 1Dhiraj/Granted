@@ -190,12 +190,11 @@ function readBundledPluginManifestRecordFromDir(params: {
   pluginsRoot: string;
   resolvedDirName: string;
 }): FacadePluginManifestLike | null {
-  const manifestPath = path.join(
-    params.pluginsRoot,
-    params.resolvedDirName,
-    "openclaw.plugin.json",
+  const manifestCandidates = ["granted.plugin.json", "openclaw.plugin.json"].map((name) =>
+    path.join(params.pluginsRoot, params.resolvedDirName, name),
   );
-  if (!fs.existsSync(manifestPath)) {
+  const manifestPath = manifestCandidates.find((candidate) => fs.existsSync(candidate));
+  if (!manifestPath) {
     return null;
   }
   try {

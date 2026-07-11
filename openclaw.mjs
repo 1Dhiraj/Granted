@@ -38,6 +38,16 @@ const ensureSupportedNodeVersion = () => {
 
 ensureSupportedNodeVersion();
 
+// Accept GRANTED_* env vars everywhere by bridging them onto legacy OPENCLAW_* names.
+for (const key of Object.keys(process.env)) {
+  if (key.startsWith("GRANTED_")) {
+    const legacyKey = "OPENCLAW_" + key.slice("GRANTED_".length);
+    if (process.env[legacyKey] === undefined) {
+      process.env[legacyKey] = process.env[key];
+    }
+  }
+}
+
 // https://nodejs.org/api/module.html#module-compile-cache
 if (module.enableCompileCache && !process.env.NODE_DISABLE_COMPILE_CACHE) {
   try {

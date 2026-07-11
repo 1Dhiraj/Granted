@@ -33,46 +33,43 @@ function applyVitestCapabilityAliasOverrides(params: {
     return params.aliasMap;
   }
 
-  const {
-    ["openclaw/plugin-sdk"]: _ignoredLegacyRootAlias,
-    ["@openclaw/plugin-sdk"]: _ignoredScopedRootAlias,
-    ...scopedAliasMap
-  } = params.aliasMap;
+  const SDK_ALIAS_PREFIXES = [
+    "openclaw/plugin-sdk",
+    "@openclaw/plugin-sdk",
+    "granted-ai/plugin-sdk",
+    "@granted/plugin-sdk",
+  ] as const;
+  const scopedAliasMap = Object.fromEntries(
+    Object.entries(params.aliasMap).filter(
+      ([key]) => !SDK_ALIAS_PREFIXES.some((prefix) => key === prefix),
+    ),
+  );
+  // Capability contract loads only need a narrow SDK slice. Keep those
+  // helpers on a tiny source graph so Vitest does not pull the dist chunk
+  // bundle that also drags Matrix/WhatsApp code into these tests.
+  const shimTargets: Record<string, string> = {
+    "llm-task": fileURLToPath(
+      new URL("./capability-runtime-vitest-shims/llm-task.ts", import.meta.url),
+    ),
+    "config-runtime": fileURLToPath(
+      new URL("./capability-runtime-vitest-shims/config-runtime.ts", import.meta.url),
+    ),
+    "media-runtime": fileURLToPath(
+      new URL("./capability-runtime-vitest-shims/media-runtime.ts", import.meta.url),
+    ),
+    "provider-onboard": fileURLToPath(new URL("../plugin-sdk/provider-onboard.ts", import.meta.url)),
+    "speech-core": fileURLToPath(
+      new URL("./capability-runtime-vitest-shims/speech-core.ts", import.meta.url),
+    ),
+  };
+  const shimAliases = Object.fromEntries(
+    SDK_ALIAS_PREFIXES.flatMap((prefix) =>
+      Object.entries(shimTargets).map(([subpath, target]) => [`${prefix}/${subpath}`, target]),
+    ),
+  );
   return {
     ...scopedAliasMap,
-    // Capability contract loads only need a narrow SDK slice. Keep those
-    // helpers on a tiny source graph so Vitest does not pull the dist chunk
-    // bundle that also drags Matrix/WhatsApp code into these tests.
-    "openclaw/plugin-sdk/llm-task": fileURLToPath(
-      new URL("./capability-runtime-vitest-shims/llm-task.ts", import.meta.url),
-    ),
-    "@openclaw/plugin-sdk/llm-task": fileURLToPath(
-      new URL("./capability-runtime-vitest-shims/llm-task.ts", import.meta.url),
-    ),
-    "openclaw/plugin-sdk/config-runtime": fileURLToPath(
-      new URL("./capability-runtime-vitest-shims/config-runtime.ts", import.meta.url),
-    ),
-    "@openclaw/plugin-sdk/config-runtime": fileURLToPath(
-      new URL("./capability-runtime-vitest-shims/config-runtime.ts", import.meta.url),
-    ),
-    "openclaw/plugin-sdk/media-runtime": fileURLToPath(
-      new URL("./capability-runtime-vitest-shims/media-runtime.ts", import.meta.url),
-    ),
-    "@openclaw/plugin-sdk/media-runtime": fileURLToPath(
-      new URL("./capability-runtime-vitest-shims/media-runtime.ts", import.meta.url),
-    ),
-    "openclaw/plugin-sdk/provider-onboard": fileURLToPath(
-      new URL("../plugin-sdk/provider-onboard.ts", import.meta.url),
-    ),
-    "@openclaw/plugin-sdk/provider-onboard": fileURLToPath(
-      new URL("../plugin-sdk/provider-onboard.ts", import.meta.url),
-    ),
-    "openclaw/plugin-sdk/speech-core": fileURLToPath(
-      new URL("./capability-runtime-vitest-shims/speech-core.ts", import.meta.url),
-    ),
-    "@openclaw/plugin-sdk/speech-core": fileURLToPath(
-      new URL("./capability-runtime-vitest-shims/speech-core.ts", import.meta.url),
-    ),
+    ...shimAliases,
   };
 }
 

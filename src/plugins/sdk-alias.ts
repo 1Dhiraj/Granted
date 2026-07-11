@@ -69,7 +69,8 @@ function hasTrustedOpenClawRootIndicator(params: {
       normalizeLowercaseStringOrEmpty(params.packageJson.bin).includes("openclaw")) ||
     (typeof params.packageJson.bin === "object" &&
       params.packageJson.bin !== null &&
-      typeof params.packageJson.bin.openclaw === "string");
+      (typeof params.packageJson.bin.openclaw === "string" ||
+        typeof params.packageJson.bin.granted === "string"));
   const hasOpenClawEntrypoint = fs.existsSync(path.join(params.packageRoot, "openclaw.mjs"));
   return hasCliEntryExport || hasOpenClawBin || hasOpenClawEntrypoint;
 }
@@ -251,7 +252,13 @@ export function resolvePluginSdkAliasFile(params: {
 
 const cachedPluginSdkExportedSubpaths = new Map<string, string[]>();
 const cachedPluginSdkScopedAliasMaps = new Map<string, Record<string, string>>();
-const PLUGIN_SDK_PACKAGE_NAMES = ["openclaw/plugin-sdk", "@openclaw/plugin-sdk"] as const;
+// Granted names first; openclaw names kept so existing extensions load unchanged.
+const PLUGIN_SDK_PACKAGE_NAMES = [
+  "granted-ai/plugin-sdk",
+  "@granted/plugin-sdk",
+  "openclaw/plugin-sdk",
+  "@openclaw/plugin-sdk",
+] as const;
 
 export function listPluginSdkExportedSubpaths(
   params: {
@@ -377,7 +384,10 @@ export function buildPluginLoaderAliasMap(
   const extensionApiAlias = resolveExtensionApiAlias({ modulePath, pluginSdkResolution });
   return {
     ...(extensionApiAlias
-      ? { "openclaw/extension-api": normalizeJitiAliasTargetPath(extensionApiAlias) }
+      ? {
+          "openclaw/extension-api": normalizeJitiAliasTargetPath(extensionApiAlias),
+          "granted-ai/extension-api": normalizeJitiAliasTargetPath(extensionApiAlias),
+        }
       : {}),
     ...(pluginSdkAlias
       ? Object.fromEntries(

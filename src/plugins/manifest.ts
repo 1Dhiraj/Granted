@@ -2,15 +2,20 @@ import fs from "node:fs";
 import path from "node:path";
 import JSON5 from "json5";
 import type { ChannelConfigRuntimeSchema } from "../channels/plugins/types.plugin.js";
-import { MANIFEST_KEY } from "../compat/legacy-names.js";
+import { type AnyManifestKey, MANIFEST_KEY, readProjectManifestField } from "../compat/legacy-names.js";
 import { matchBoundaryFileOpenFailure, openBoundaryFileSync } from "../infra/boundary-file-read.js";
 import { normalizeOptionalString } from "../shared/string-coerce.js";
 import { normalizeTrimmedStringList } from "../shared/string-normalization.js";
 import { isRecord } from "../utils.js";
 import type { PluginConfigUiHint, PluginKind } from "./types.js";
 
-export const PLUGIN_MANIFEST_FILENAME = "openclaw.plugin.json";
-export const PLUGIN_MANIFEST_FILENAMES = [PLUGIN_MANIFEST_FILENAME] as const;
+export const PLUGIN_MANIFEST_FILENAME = "granted.plugin.json";
+// New extensions use granted.plugin.json; the legacy filename keeps existing ones loading.
+export const LEGACY_PLUGIN_MANIFEST_FILENAME = "openclaw.plugin.json";
+export const PLUGIN_MANIFEST_FILENAMES = [
+  PLUGIN_MANIFEST_FILENAME,
+  LEGACY_PLUGIN_MANIFEST_FILENAME,
+] as const;
 
 export type PluginManifestChannelConfig = {
   schema: Record<string, unknown>;
@@ -638,15 +643,12 @@ export type PackageManifest = {
   name?: string;
   version?: string;
   description?: string;
-} & Partial<Record<ManifestKey, OpenClawPackageManifest>>;
+} & Partial<Record<AnyManifestKey, OpenClawPackageManifest>>;
 
 export function getPackageManifestMetadata(
   manifest: PackageManifest | undefined,
 ): OpenClawPackageManifest | undefined {
-  if (!manifest) {
-    return undefined;
-  }
-  return manifest[MANIFEST_KEY];
+  return readProjectManifestField<OpenClawPackageManifest>(manifest);
 }
 
 export function resolvePackageExtensionEntries(

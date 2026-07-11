@@ -38,6 +38,7 @@ function hasUsableBundledPluginTree(pluginsDir: string): boolean {
       const pluginDir = path.join(pluginsDir, entry.name);
       return (
         fs.existsSync(path.join(pluginDir, "package.json")) ||
+        fs.existsSync(path.join(pluginDir, "granted.plugin.json")) ||
         fs.existsSync(path.join(pluginDir, "openclaw.plugin.json"))
       );
     });

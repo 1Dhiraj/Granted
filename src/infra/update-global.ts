@@ -274,6 +274,21 @@ export async function resolveGlobalRoot(
   return root || null;
 }
 
+/**
+ * Pick the installed package dir under a global root, preferring the primary
+ * name but falling back to a legacy name that already exists on disk so
+ * pre-rebrand global installs are still located.
+ */
+function resolvePackageDirUnderRoot(root: string): string {
+  for (const name of ALL_PACKAGE_NAMES) {
+    const candidate = path.join(root, name);
+    if (fsSync.existsSync(candidate)) {
+      return candidate;
+    }
+  }
+  return path.join(root, PRIMARY_PACKAGE_NAME);
+}
+
 export async function resolveGlobalPackageRoot(
   managerOrCommand: GlobalInstallManager | ResolvedGlobalInstallCommand,
   runCommand: CommandRunner,
@@ -284,7 +299,7 @@ export async function resolveGlobalPackageRoot(
   if (!root) {
     return null;
   }
-  return path.join(root, PRIMARY_PACKAGE_NAME);
+  return resolvePackageDirUnderRoot(root);
 }
 
 export async function resolveGlobalInstallTarget(params: {
@@ -303,7 +318,7 @@ export async function resolveGlobalInstallTarget(params: {
   return {
     ...command,
     globalRoot,
-    packageRoot: globalRoot ? path.join(globalRoot, PRIMARY_PACKAGE_NAME) : null,
+    packageRoot: globalRoot ? resolvePackageDirUnderRoot(globalRoot) : null,
   };
 }
 

@@ -7,7 +7,7 @@ import {
   normalizeOptionalString,
 } from "../shared/string-coerce.js";
 import { isRecord } from "../utils.js";
-import { DEFAULT_PLUGIN_ENTRY_CANDIDATES, PLUGIN_MANIFEST_FILENAME } from "./manifest.js";
+import { DEFAULT_PLUGIN_ENTRY_CANDIDATES, PLUGIN_MANIFEST_FILENAMES } from "./manifest.js";
 import type { PluginBundleFormat } from "./types.js";
 
 export const CODEX_BUNDLE_MANIFEST_RELATIVE_PATH = ".codex-plugin/plugin.json";
@@ -421,7 +421,7 @@ export function detectBundleManifestFormat(rootDir: string): PluginBundleFormat 
   if (fs.existsSync(path.join(rootDir, CLAUDE_BUNDLE_MANIFEST_RELATIVE_PATH))) {
     return "claude";
   }
-  if (fs.existsSync(path.join(rootDir, PLUGIN_MANIFEST_FILENAME))) {
+  if (PLUGIN_MANIFEST_FILENAMES.some((name) => fs.existsSync(path.join(rootDir, name)))) {
     return null;
   }
   if (

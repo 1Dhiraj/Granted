@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { MANIFEST_KEY } from "../../compat/legacy-names.js";
+import { type AnyManifestKey, readProjectManifestField } from "../../compat/legacy-names.js";
 import { resolveOpenClawPackageRootSync } from "../../infra/openclaw-root.js";
 import { listChannelCatalogEntries } from "../../plugins/channel-catalog-registry.js";
 import type { OpenClawPackageManifest } from "../../plugins/manifest.js";
@@ -66,7 +66,7 @@ type ExternalCatalogEntry = {
 const ENV_CATALOG_PATHS = ["OPENCLAW_PLUGIN_CATALOG_PATHS", "OPENCLAW_MPM_CATALOG_PATHS"];
 const OFFICIAL_CHANNEL_CATALOG_RELATIVE_PATH = path.join("dist", "channel-catalog.json");
 
-type ManifestKey = typeof MANIFEST_KEY;
+type ManifestKey = AnyManifestKey;
 
 function parseCatalogEntries(raw: unknown): ExternalCatalogEntry[] {
   if (Array.isArray(raw)) {
@@ -283,7 +283,7 @@ function buildCatalogEntryFromManifest(params: {
 }
 
 function buildExternalCatalogEntry(entry: ExternalCatalogEntry): ChannelPluginCatalogEntry | null {
-  const manifest = entry[MANIFEST_KEY];
+  const manifest = readProjectManifestField<OpenClawPackageManifest>(entry);
   return buildCatalogEntryFromManifest({
     packageName: entry.name,
     channel: manifest?.channel,

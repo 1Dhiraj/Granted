@@ -18,7 +18,7 @@ import { listAgentWorkspaceDirs } from "../agents/workspace-dirs.js";
 import { listChannelPlugins } from "../channels/plugins/index.js";
 import { inspectReadOnlyChannelAccount } from "../channels/read-only-account-inspect.js";
 import { formatCliCommand } from "../cli/command-format.js";
-import { MANIFEST_KEY } from "../compat/legacy-names.js";
+import { type AnyManifestKey, readProjectManifestField } from "../compat/legacy-names.js";
 import { resolveNativeSkillsEnabled } from "../config/commands.js";
 import type { OpenClawConfig, ConfigFileSnapshot } from "../config/config.js";
 import { collectIncludePathsRecursive } from "../config/includes-scan.js";
@@ -101,9 +101,9 @@ async function readPluginManifestExtensions(pluginPath: string): Promise<string[
   }
 
   const parsed = JSON.parse(raw) as Partial<
-    Record<typeof MANIFEST_KEY, { extensions?: unknown }>
+    Record<AnyManifestKey, { extensions?: unknown }>
   > | null;
-  const extensions = parsed?.[MANIFEST_KEY]?.extensions;
+  const extensions = readProjectManifestField<{ extensions?: unknown }>(parsed)?.extensions;
   if (!Array.isArray(extensions)) {
     return [];
   }

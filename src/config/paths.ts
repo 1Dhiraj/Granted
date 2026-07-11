@@ -17,11 +17,12 @@ export function resolveIsNixMode(env: NodeJS.ProcessEnv = process.env): boolean 
 
 export const isNixMode = resolveIsNixMode();
 
-// Support the remaining legacy pre-rebrand state dir.
-const LEGACY_STATE_DIRNAMES = [".clawdbot"] as const;
-const NEW_STATE_DIRNAME = ".openclaw";
-const CONFIG_FILENAME = "openclaw.json";
-const LEGACY_CONFIG_FILENAMES = ["clawdbot.json"] as const;
+// Support legacy pre-rebrand state dirs (openclaw → granted, clawdbot → openclaw).
+// Existing installs keep their current dir; only fresh installs get ~/.granted.
+const LEGACY_STATE_DIRNAMES = [".openclaw", ".clawdbot"] as const;
+const NEW_STATE_DIRNAME = ".granted";
+const CONFIG_FILENAME = "granted.json";
+const LEGACY_CONFIG_FILENAMES = ["openclaw.json", "clawdbot.json"] as const;
 
 function resolveDefaultHomeDir(): string {
   return resolveRequiredHomeDir(process.env, os.homedir);
@@ -67,7 +68,7 @@ export function resolveStateDir(
     return resolveUserPath(override, env, effectiveHomedir);
   }
   const newDir = newStateDir(effectiveHomedir);
-  if (env.OPENCLAW_TEST_FAST === "1") {
+  if (env.OPENCLAW_TEST_FAST === "1" && fs.existsSync(newDir)) {
     return newDir;
   }
   const legacyDirs = legacyStateDirs(effectiveHomedir);
@@ -86,6 +87,24 @@ export function resolveStateDir(
     return existingLegacy;
   }
   return newDir;
+}
+
+function resolveConfigFileInStateDir(stateDir: string): string {
+  const canonical = path.join(stateDir, CONFIG_FILENAME);
+  try {
+    if (fs.existsSync(canonical)) {
+      return canonical;
+    }
+    for (const name of LEGACY_CONFIG_FILENAMES) {
+      const candidate = path.join(stateDir, name);
+      if (fs.existsSync(candidate)) {
+        return candidate;
+      }
+    }
+  } catch {
+    // fall through to canonical
+  }
+  return canonical;
 }
 
 function resolveUserPath(
@@ -123,7 +142,11 @@ export function resolveConfigPathCandidate(
   homedir: () => string = envHomedir(env),
 ): string {
   if (env.OPENCLAW_TEST_FAST === "1") {
-    return resolveCanonicalConfigPath(env, resolveStateDir(env, homedir));
+    const override = env.OPENCLAW_CONFIG_PATH?.trim();
+    if (override) {
+      return resolveUserPath(override, env, envHomedir(env));
+    }
+    return resolveConfigFileInStateDir(resolveStateDir(env, homedir));
   }
   const candidates = resolveDefaultConfigCandidates(env, homedir);
   const existing = candidates.find((candidate) => {
@@ -152,7 +175,7 @@ export function resolveConfigPath(
     return resolveUserPath(override, env, homedir);
   }
   if (env.OPENCLAW_TEST_FAST === "1") {
-    return path.join(stateDir, CONFIG_FILENAME);
+    return resolveConfigFileInStateDir(stateDir);
   }
   const stateOverride = env.OPENCLAW_STATE_DIR?.trim();
   const candidates = [
@@ -220,7 +243,7 @@ export const DEFAULT_GATEWAY_PORT = 18789;
 export function resolveGatewayLockDir(tmpdir: () => string = os.tmpdir): string {
   const base = tmpdir();
   const uid = typeof process.getuid === "function" ? process.getuid() : undefined;
-  const suffix = uid != null ? `openclaw-${uid}` : "openclaw";
+  const suffix = uid != null ? `granted-${uid}` : "granted";
   return path.join(base, suffix);
 }
 

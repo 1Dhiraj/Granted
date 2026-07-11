@@ -15,7 +15,9 @@ describe("setupCommand", () => {
 
       await setupCommand(undefined, runtime);
 
-      const configPath = path.join(home, ".openclaw", "openclaw.json");
+      // withTempHome forces OPENCLAW_STATE_DIR=<home>/.openclaw, so the canonical
+      // granted.json config lands in that state dir.
+      const configPath = path.join(home, ".openclaw", "granted.json");
       const raw = await fs.readFile(configPath, "utf-8");
 
       expect(raw).toContain('"mode": "local"');

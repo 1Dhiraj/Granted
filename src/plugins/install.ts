@@ -34,9 +34,10 @@ type PackageManifest = PluginPackageManifest & {
 };
 
 const MISSING_EXTENSIONS_ERROR =
-  'package.json missing openclaw.extensions; update the plugin package to include openclaw.extensions (for example ["./dist/index.js"]). See https://docs.openclaw.ai/help/troubleshooting#plugin-install-fails-with-missing-openclaw-extensions';
+  'package.json missing granted.extensions; update the plugin package to include granted.extensions (for example ["./dist/index.js"]). Legacy openclaw.extensions is also accepted.';
 const PLUGIN_ARCHIVE_ROOT_MARKERS = [
   "package.json",
+  "granted.plugin.json",
   "openclaw.plugin.json",
   ".codex-plugin/plugin.json",
   ".claude-plugin/plugin.json",
@@ -172,7 +173,7 @@ function ensureOpenClawExtensions(params: { manifest: PackageManifest }):
   if (resolved.status === "empty") {
     return {
       ok: false,
-      error: "package.json openclaw.extensions is empty",
+      error: "package.json granted.extensions (or legacy openclaw.extensions) is empty",
       code: PLUGIN_INSTALL_ERROR_CODE.EMPTY_OPENCLAW_EXTENSIONS,
     };
   }

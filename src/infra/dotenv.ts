@@ -4,6 +4,7 @@ import path from "node:path";
 import dotenv from "dotenv";
 import { resolveConfigDir } from "../utils.js";
 import { resolveRequiredHomeDir } from "./home-dir.js";
+import { applyGrantedEnvAliases } from "./granted-env.js";
 import {
   isDangerousHostEnvOverrideVarName,
   isDangerousHostEnvVarName,
@@ -200,14 +201,14 @@ function loadParsedDotEnvFiles(files: LoadedDotEnvFile[]) {
 export function loadGlobalRuntimeDotEnvFiles(opts?: { quiet?: boolean; stateEnvPath?: string }) {
   const quiet = opts?.quiet ?? true;
   const stateEnvPath = opts?.stateEnvPath ?? path.join(resolveConfigDir(process.env), ".env");
-  const defaultStateEnvPath = path.join(
-    resolveRequiredHomeDir(process.env, os.homedir),
-    ".openclaw",
-    ".env",
+  const defaultStateEnvPaths = [".granted", ".openclaw"].map((dir) =>
+    path.join(resolveRequiredHomeDir(process.env, os.homedir), dir, ".env"),
   );
   const hasExplicitNonDefaultStateDir =
     process.env.OPENCLAW_STATE_DIR?.trim() !== undefined &&
-    path.resolve(stateEnvPath) !== path.resolve(defaultStateEnvPath);
+    defaultStateEnvPaths.every(
+      (candidate) => path.resolve(stateEnvPath) !== path.resolve(candidate),
+    );
   const parsedFiles = [
     readDotEnvFile({
       filePath: stateEnvPath,
@@ -216,21 +217,24 @@ export function loadGlobalRuntimeDotEnvFiles(opts?: { quiet?: boolean; stateEnvP
     }),
   ];
   if (!hasExplicitNonDefaultStateDir) {
-    parsedFiles.push(
-      readDotEnvFile({
-        filePath: path.join(
-          resolveRequiredHomeDir(process.env, os.homedir),
-          ".config",
-          "openclaw",
-          "gateway.env",
-        ),
-        shouldBlockKey: shouldBlockRuntimeDotEnvKey,
-        quiet,
-      }),
-    );
+    for (const configDirName of ["granted", "openclaw"]) {
+      parsedFiles.push(
+        readDotEnvFile({
+          filePath: path.join(
+            resolveRequiredHomeDir(process.env, os.homedir),
+            ".config",
+            configDirName,
+            "gateway.env",
+          ),
+          shouldBlockKey: shouldBlockRuntimeDotEnvKey,
+          quiet,
+        }),
+      );
+    }
   }
   const parsed = parsedFiles.filter((file): file is LoadedDotEnvFile => file !== null);
   loadParsedDotEnvFiles(parsed);
+  applyGrantedEnvAliases();
 }
 
 export function loadDotEnv(opts?: { quiet?: boolean }) {
@@ -238,7 +242,7 @@ export function loadDotEnv(opts?: { quiet?: boolean }) {
   const cwdEnvPath = path.join(process.cwd(), ".env");
   loadWorkspaceDotEnvFile(cwdEnvPath, { quiet });
 
-  // Then load global fallback: ~/.openclaw/.env (or OPENCLAW_STATE_DIR/.env),
-  // without overriding any env vars already present.
+  // Then load the global fallback state .env without overriding existing vars.
   loadGlobalRuntimeDotEnvFiles({ quiet });
+  applyGrantedEnvAliases();
 }

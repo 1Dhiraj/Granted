@@ -10,8 +10,8 @@ describe("buildPlatformRuntimeLogHints", () => {
           OPENCLAW_STATE_DIR: "/tmp/openclaw-state",
           OPENCLAW_LOG_PREFIX: "gateway",
         },
-        systemdServiceName: "openclaw-gateway",
-        windowsTaskName: "OpenClaw Gateway",
+        systemdServiceName: "granted-gateway",
+        windowsTaskName: "Granted Gateway",
       }),
     ).toEqual([
       "Launchd stdout (if installed): /tmp/openclaw-state/logs/gateway.log",
@@ -23,17 +23,17 @@ describe("buildPlatformRuntimeLogHints", () => {
     expect(
       buildPlatformRuntimeLogHints({
         platform: "linux",
-        systemdServiceName: "openclaw-gateway",
-        windowsTaskName: "OpenClaw Gateway",
+        systemdServiceName: "granted-gateway",
+        windowsTaskName: "Granted Gateway",
       }),
-    ).toEqual(["Logs: journalctl --user -u openclaw-gateway.service -n 200 --no-pager"]);
+    ).toEqual(["Logs: journalctl --user -u granted-gateway.service -n 200 --no-pager"]);
     expect(
       buildPlatformRuntimeLogHints({
         platform: "win32",
-        systemdServiceName: "openclaw-gateway",
-        windowsTaskName: "OpenClaw Gateway",
+        systemdServiceName: "granted-gateway",
+        windowsTaskName: "Granted Gateway",
       }),
-    ).toEqual(['Logs: schtasks /Query /TN "OpenClaw Gateway" /V /FO LIST']);
+    ).toEqual(['Logs: schtasks /Query /TN "Granted Gateway" /V /FO LIST']);
   });
 });
 
@@ -45,8 +45,8 @@ describe("buildPlatformServiceStartHints", () => {
         installCommand: "openclaw gateway install",
         startCommand: "openclaw gateway",
         launchAgentPlistPath: "~/Library/LaunchAgents/com.openclaw.gateway.plist",
-        systemdServiceName: "openclaw-gateway",
-        windowsTaskName: "OpenClaw Gateway",
+        systemdServiceName: "granted-gateway",
+        windowsTaskName: "Granted Gateway",
       }),
     ).toEqual([
       "openclaw gateway install",
@@ -59,13 +59,13 @@ describe("buildPlatformServiceStartHints", () => {
         installCommand: "openclaw gateway install",
         startCommand: "openclaw gateway",
         launchAgentPlistPath: "~/Library/LaunchAgents/com.openclaw.gateway.plist",
-        systemdServiceName: "openclaw-gateway",
-        windowsTaskName: "OpenClaw Gateway",
+        systemdServiceName: "granted-gateway",
+        windowsTaskName: "Granted Gateway",
       }),
     ).toEqual([
       "openclaw gateway install",
       "openclaw gateway",
-      "systemctl --user start openclaw-gateway.service",
+      "systemctl --user start granted-gateway.service",
     ]);
   });
 });

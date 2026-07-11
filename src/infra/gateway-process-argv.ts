@@ -57,8 +57,11 @@ export function isGatewayArgv(args: string[], opts?: { allowGatewayBinary?: bool
 
   const exe = (normalized[0] ?? "").replace(/\.(bat|cmd|exe)$/i, "");
   return (
+    exe.endsWith("/granted") ||
+    exe === "granted" ||
     exe.endsWith("/openclaw") ||
     exe === "openclaw" ||
-    (opts?.allowGatewayBinary === true && exe.endsWith("/openclaw-gateway"))
+    (opts?.allowGatewayBinary === true &&
+      (exe.endsWith("/granted-gateway") || exe.endsWith("/openclaw-gateway")))
   );
 }
