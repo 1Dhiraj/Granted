@@ -34,3 +34,8 @@ onlyBuiltDependencies:
 
 ignoredBuiltDependencies:
   - koffi
+
+# pnpm v10 reads patches from here; the legacy package.json pnpm.patchedDependencies is ignored.
+patchedDependencies:
+  "@mariozechner/pi-ai": patches/@mariozechner__pi-ai.patch
+  "@mariozechner/pi-agent-core@0.65.2": patches/@mariozechner__pi-agent-core@0.65.2.patch

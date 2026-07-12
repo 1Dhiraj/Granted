@@ -1,0 +1,22 @@
+diff --git a/dist/agent-loop.js b/dist/agent-loop.js
+index c3810baa00b576a6f1740992b5904c77c87d0029..192f94d7492e221beca19e2799fe14cc77803696 100644
+--- a/dist/agent-loop.js
++++ b/dist/agent-loop.js
+@@ -290,9 +290,16 @@ function prepareToolCallArguments(tool, toolCall) {
+ async function prepareToolCall(currentContext, assistantMessage, toolCall, config, signal) {
+     const tool = currentContext.tools?.find((t) => t.name === toolCall.name);
+     if (!tool) {
++        // Teach the model the valid names so it can self-correct on the next
++        // step instead of hallucinating variants (write_file -> write).
++        const names = (currentContext.tools ?? []).map((t) => t.name);
++        const requested = String(toolCall.name ?? "").toLowerCase();
++        const closest = names.find((n) => requested.includes(n.toLowerCase()) || n.toLowerCase().includes(requested)) ??
++            names.find((n) => requested.replace(/[^a-z]/g, "").includes(n.toLowerCase().replace(/[^a-z]/g, "")));
++        const hint = closest ? ` Did you mean "${closest}"?` : "";
+         return {
+             kind: "immediate",
+-            result: createErrorToolResult(`Tool ${toolCall.name} not found`),
++            result: createErrorToolResult(`Tool ${toolCall.name} not found.${hint} Available tools: ${names.join(", ")}. Retry with an exact tool name; do not report success until a tool call succeeds.`),
+             isError: true,
+         };
+     }
