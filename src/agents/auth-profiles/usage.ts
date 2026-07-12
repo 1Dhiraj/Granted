@@ -39,6 +39,13 @@ const FAILURE_REASON_ORDER = new Map<AuthProfileFailureReason, number>(
   FAILURE_REASON_PRIORITY.map((reason, index) => [reason, index]),
 );
 
+// Failures that condemn one model, not the credential: other models on the
+// same profile may bypass the cooldown (a dead/renamed model or a per-model
+// rate limit says nothing about the key's health).
+function isModelScopedCooldownReason(reason: AuthProfileFailureReason | undefined): boolean {
+  return reason === "rate_limit" || reason === "model_not_found";
+}
+
 const WHAM_USAGE_URL = "https://chatgpt.com/backend-api/wham/usage";
 const WHAM_TIMEOUT_MS = 3_000;
 const WHAM_BURST_COOLDOWN_MS = 15_000;
@@ -372,7 +379,7 @@ export function getSoonestCooldownExpiry(
     }
     const matchingModelScopedCooldown =
       options?.forModel &&
-      stats.cooldownReason === "rate_limit" &&
+      isModelScopedCooldownReason(stats.cooldownReason) &&
       stats.cooldownModel === options.forModel &&
       !isActiveUnusableWindow(stats.disabledUntil, ts);
     if (matchingModelScopedCooldown) {
@@ -400,7 +407,7 @@ function shouldBypassModelScopedCooldown(
 ): boolean {
   return !!(
     forModel &&
-    stats.cooldownReason === "rate_limit" &&
+    isModelScopedCooldownReason(stats.cooldownReason) &&
     stats.cooldownModel &&
     stats.cooldownModel !== forModel &&
     !isActiveUnusableWindow(stats.disabledUntil, now)
@@ -774,15 +781,15 @@ function computeNextProfileUsageStats(params: {
       ) {
         updatedStats.cooldownModel = undefined;
       } else if (
-        params.reason === "rate_limit" &&
+        isModelScopedCooldownReason(params.reason) &&
         !params.modelId &&
         params.existing.cooldownModel
       ) {
         // Unknown originating model during an active model-scoped cooldown:
         // widen scope conservatively so no model can bypass on stale metadata.
         updatedStats.cooldownModel = undefined;
-      } else if (params.reason !== "rate_limit") {
-        // Non-rate-limit failures are profile-wide — clear model scope even
+      } else if (!isModelScopedCooldownReason(params.reason)) {
+        // Profile-wide failures (auth, timeout, …) clear model scope even
         // when the same model fails, so that no model can bypass.
         updatedStats.cooldownModel = undefined;
       } else {
@@ -790,7 +797,9 @@ function computeNextProfileUsageStats(params: {
       }
     } else {
       updatedStats.cooldownReason = params.reason;
-      updatedStats.cooldownModel = params.reason === "rate_limit" ? params.modelId : undefined;
+      updatedStats.cooldownModel = isModelScopedCooldownReason(params.reason)
+        ? params.modelId
+        : undefined;
     }
   }
 

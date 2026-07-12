@@ -178,6 +178,24 @@ describe("isProfileInCooldown", () => {
     expect(isProfileInCooldown(store, "github-copilot:github")).toBe(true);
   });
 
+  it("returns false for a different model when cooldown is model-scoped (model_not_found)", () => {
+    // Regression: a dead catalog model (e.g. gemini-2.5-flash-lite 404) must
+    // not block healthy sibling models on the same provider profile.
+    const store = makeStore({
+      "github-copilot:github": {
+        cooldownUntil: Date.now() + 60_000,
+        cooldownReason: "model_not_found",
+        cooldownModel: "gemini-2.5-flash-lite",
+      },
+    });
+    expect(isProfileInCooldown(store, "github-copilot:github", undefined, "gemini-2.5-flash")).toBe(
+      false,
+    );
+    expect(
+      isProfileInCooldown(store, "github-copilot:github", undefined, "gemini-2.5-flash-lite"),
+    ).toBe(true);
+  });
+
   it("returns true for all models when cooldownModel is undefined (profile-wide)", () => {
     const store = makeStore({
       "github-copilot:github": {
@@ -1026,6 +1044,33 @@ describe("markAuthProfileFailure — per-model cooldown metadata", () => {
     const stats = store.usageStats?.["github-copilot:github"];
     expect(stats?.cooldownReason).toBe("rate_limit");
     expect(stats?.cooldownModel).toBe("claude-sonnet-4.6");
+  });
+
+  it("records cooldownModel on model_not_found so sibling models keep working", async () => {
+    const now = 1_000_000;
+    const store = makeStoreWithCopilot({});
+    vi.useFakeTimers();
+    vi.setSystemTime(now);
+    try {
+      await markAuthProfileFailure({
+        store,
+        profileId: "github-copilot:github",
+        reason: "model_not_found",
+        modelId: "gemini-2.5-flash-lite",
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+    const stats = store.usageStats?.["github-copilot:github"];
+    expect(stats?.cooldownReason).toBe("model_not_found");
+    expect(stats?.cooldownModel).toBe("gemini-2.5-flash-lite");
+    // The dead model is blocked; a healthy sibling bypasses the cooldown.
+    expect(
+      isProfileInCooldown(store, "github-copilot:github", now, "gemini-2.5-flash-lite"),
+    ).toBe(true);
+    expect(isProfileInCooldown(store, "github-copilot:github", now, "gemini-2.5-flash")).toBe(
+      false,
+    );
   });
 
   it("widens cooldownModel to undefined when a different model fails during active cooldown", async () => {
