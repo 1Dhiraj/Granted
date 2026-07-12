@@ -2,7 +2,9 @@ import { createRequire } from "node:module";
 import { normalizeOptionalString } from "./shared/string-coerce.js";
 
 declare const __OPENCLAW_VERSION__: string | undefined;
-const CORE_PACKAGE_NAME = "openclaw";
+// Accept both the legacy and the renamed root package so version resolution
+// survives the openclaw -> granted-ai rename (plugins gate on this version).
+const CORE_PACKAGE_NAMES = new Set(["openclaw", "granted-ai"]);
 
 const PACKAGE_JSON_CANDIDATES = [
   "../package.json",
@@ -31,7 +33,7 @@ function readVersionFromJsonCandidates(
         if (!version) {
           continue;
         }
-        if (opts.requirePackageName && parsed.name !== CORE_PACKAGE_NAME) {
+        if (opts.requirePackageName && !CORE_PACKAGE_NAMES.has(parsed.name ?? "")) {
           continue;
         }
         return version;
