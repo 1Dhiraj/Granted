@@ -117,6 +117,19 @@ Rules:
   store, auth profiles) survived restart. (`gateway restart` WS method fixed earlier.)
 - **F2 pending**: happy path still unverified — Google daily quota exhausted
   (resets midnight PT); false-success announce fix was verified separately.
+
+## Retest 2026-07-12 (F2 trust component)
+
+- **F2 honesty VERIFIED live**: spawned subagent failed on provider rate limits;
+  the parent announced "The subagent task ... has failed due to an API rate
+  limit error. I will try again later." — same scenario that yesterday produced
+  a false success claim. Completion happy path still pending quota reset.
+- Fallback chain now 3 providers: google/gemini-2.5-flash →
+  google/gemini-2.0-flash → together/meta-llama/Llama-3.3-70B-Instruct-Turbo →
+  groq/llama-3.3-70b (verified: Together serves when Google is exhausted).
+- Background roles (heartbeat, subagents, compaction) moved to
+  `agents.defaults.economyModel` = google/gemini-2.0-flash; heartbeat interval
+  stretched to 2h — stops the overnight quota burn that starved the day.
 - **Fallback chain VERIFIED**: google/gemini-2.5-flash → gemini-2.0-flash →
   groq/llama-3.3-70b-versatile walked in order with per-model error detail.
 - **New defect (root cause of original F1/F2)**: sessions can carry a stale
