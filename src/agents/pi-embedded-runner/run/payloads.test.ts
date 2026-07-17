@@ -71,6 +71,31 @@ describe("buildEmbeddedRunPayloads tool-error warnings", () => {
     });
   });
 
+  it("warns when the model claims success over a hallucinated tool call (write_file lie)", () => {
+    // Regression: model called nonexistent `write_file`, exec had already
+    // failed, and the reply still announced "It has been saved." The intended
+    // action never ran, so the confident reply must not stand unchallenged.
+    const payloads = buildPayloads({
+      assistantTexts: [
+        "The 20th Fibonacci number is 4181. It has been saved to C:\\temp\\f2-proof.txt.",
+      ],
+      lastToolError: { toolName: "write_file", error: "Tool write_file not found" },
+      verboseLevel: "off",
+    });
+    expect(payloads).toHaveLength(2);
+    expect(payloads[1]?.text).toContain("failed");
+    expect(payloads[1]?.isError).toBe(true);
+  });
+
+  it("surfaces a hallucinated tool call even with no assistant reply", () => {
+    const payloads = buildPayloads({
+      lastToolError: { toolName: "save_note", error: "Tool save_note not found" },
+      verboseLevel: "off",
+    });
+    expect(payloads).toHaveLength(1);
+    expect(payloads[0]?.text).toContain("failed");
+  });
+
   it("keeps non-exec mutating tool failures visible", () => {
     const payloads = buildPayloads({
       lastToolError: { toolName: "write", error: "permission denied" },

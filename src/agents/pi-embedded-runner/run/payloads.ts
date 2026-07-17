@@ -48,6 +48,14 @@ function isRecoverableToolError(error: string | undefined): boolean {
   return RECOVERABLE_TOOL_ERROR_KEYWORDS.some((keyword) => errorLower.includes(keyword));
 }
 
+// The model called a tool that does not exist (e.g. hallucinated `write_file`).
+// The intended action never ran at all, so a confident reply on top of this
+// error is exactly the "silently confirm actions that did not happen" case —
+// unlike a real tool that failed and was then recovered from.
+function isUnknownToolError(error: string | undefined): boolean {
+  return /^tool\s+\S+\s+not found/i.test(error?.trim() ?? "");
+}
+
 function isVerboseToolDetailEnabled(level?: VerboseLevel): boolean {
   return level === "on" || level === "full";
 }
@@ -79,6 +87,13 @@ function resolveToolErrorWarningPolicy(params: {
 }): ToolErrorWarningPolicy {
   const normalizedToolName = normalizeOptionalLowercaseString(params.lastToolError.toolName) ?? "";
   const includeDetails = shouldIncludeToolErrorDetails(params);
+  // A hallucinated tool name means the intended action never ran. Surface it
+  // even if the model wrote a confident reply, and even before the
+  // suppressToolErrorWarnings / exec-like gates — the model must be corrected,
+  // not have its false success confirmed.
+  if (isUnknownToolError(params.lastToolError.error)) {
+    return { showWarning: true, includeDetails: true };
+  }
   if (params.suppressToolErrorWarnings) {
     return { showWarning: false, includeDetails };
   }
