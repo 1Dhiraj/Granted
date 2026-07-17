@@ -190,6 +190,22 @@ export function resolveRunFailoverDecision(params: RunFailoverDecisionParams): R
       action: "continue_normal",
     };
   }
+  // Non-rate-limit failures that warrant switching models (auth/bad key,
+  // billing, overloaded). Auth-profile rotation is already exhausted by the
+  // caller before this stage, so a dead key on the current candidate must
+  // advance the model chain — otherwise the run surfaces the error here and
+  // never reaches later fallbacks (including a local model). This mirrors the
+  // prompt and retry-limit stages, which already escalate these reasons.
+  if (
+    params.failoverFailure &&
+    params.fallbackConfigured &&
+    shouldEscalateRetryLimit(params.failoverReason, rateLimitModelFallback)
+  ) {
+    return {
+      action: "fallback_model",
+      reason: params.timedOut ? "timeout" : (params.failoverReason ?? "unknown"),
+    };
+  }
   return {
     action: "continue_normal",
   };

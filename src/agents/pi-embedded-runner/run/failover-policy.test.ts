@@ -178,6 +178,79 @@ describe("resolveRunFailoverDecision", () => {
       action: "continue_normal",
     });
   });
+
+  it("advances the model chain on an assistant auth failure (dead key mid-chain)", () => {
+    // Regression: a bad key (401) on a fallback candidate used to surface here
+    // via continue_normal, stopping the chain before later fallbacks (e.g. a
+    // local model) were ever tried.
+    expect(
+      resolveRunFailoverDecision({
+        stage: "assistant",
+        aborted: false,
+        fallbackConfigured: true,
+        failoverFailure: true,
+        failoverReason: "auth",
+        timedOut: false,
+        timedOutDuringCompaction: false,
+        profileRotated: true,
+      }),
+    ).toEqual({
+      action: "fallback_model",
+      reason: "auth",
+    });
+  });
+
+  it("advances the model chain on an assistant billing failure", () => {
+    expect(
+      resolveRunFailoverDecision({
+        stage: "assistant",
+        aborted: false,
+        fallbackConfigured: true,
+        failoverFailure: true,
+        failoverReason: "billing",
+        timedOut: false,
+        timedOutDuringCompaction: false,
+        profileRotated: true,
+      }),
+    ).toEqual({
+      action: "fallback_model",
+      reason: "billing",
+    });
+  });
+
+  it("does not advance on a non-escalating assistant failure (model_not_found)", () => {
+    expect(
+      resolveRunFailoverDecision({
+        stage: "assistant",
+        aborted: false,
+        fallbackConfigured: true,
+        failoverFailure: true,
+        failoverReason: "model_not_found",
+        timedOut: false,
+        timedOutDuringCompaction: false,
+        profileRotated: true,
+      }),
+    ).toEqual({
+      action: "continue_normal",
+    });
+  });
+
+  it("does not advance an auth failure when no fallback chain is configured", () => {
+    expect(
+      resolveRunFailoverDecision({
+        stage: "assistant",
+        aborted: false,
+        fallbackConfigured: false,
+        failoverFailure: true,
+        failoverReason: "auth",
+        timedOut: false,
+        timedOutDuringCompaction: false,
+        profileRotated: true,
+      }),
+    ).toEqual({
+      action: "continue_normal",
+    });
+  });
 });
 
 describe("mergeRetryFailoverReason", () => {
