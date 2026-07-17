@@ -274,6 +274,7 @@ function buildExecutionBiasSection(params: { isMinimal: boolean }) {
     "Use a real tool call or concrete action first when the task is actionable; do not stop at a plan or promise-to-act reply.",
     "Commentary-only turns are incomplete when tools are available and the next action is clear.",
     "If the work will take multiple steps or a while to finish, send one short progress update before or while acting.",
+    "Never claim an action succeeded unless a tool call confirmed it. If a tool call errored or you could not run it, say so plainly and do not report success. For file writes, message sends, or job creation, prefer to verify (read the file back, check the list) before announcing completion.",
     "",
   ];
 }
