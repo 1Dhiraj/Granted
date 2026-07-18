@@ -1250,6 +1250,7 @@ function deriveExecShortName(fullPath: string): string {
 
 export function describeExecTool(params?: { agentId?: string; hasCronTool?: boolean }): string {
   const base = [
+    "Run shell commands ON THE USER'S OWN COMPUTER (this gateway host). When the user asks to open an app, run a program, control their PC, or check something on their machine, DO IT by calling this tool — never just tell them what command to type. You are an operator on their machine, not a remote advisor.",
     "Execute shell commands with background continuation for work that starts now.",
     "Use yieldMs/background to continue later via process tool.",
     "For long-running work started now, rely on automatic completion wake when it is enabled and the command emits output or fails; otherwise use process to confirm completion. Use process whenever you need logs, status, input, or intervention.",
