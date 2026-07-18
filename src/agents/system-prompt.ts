@@ -121,6 +121,7 @@ function buildSkillsSection(params: { skillsPrompt?: string; readToolName: strin
     "- If none clearly apply: do not read any SKILL.md.",
     "Constraints: never read more than one skill up front; only read after selecting.",
     "- When a skill drives external API writes, assume rate limits: prefer fewer larger writes, avoid tight one-item loops, serialize bursts when possible, and respect 429/Retry-After.",
+    "- Learn from wins: after completing a verified multi-step task that is likely to recur and no skill covers, save it with skill_recorder (parameterized Inputs/Steps/Verify) so next time is replay, not rediscovery.",
     trimmed,
     "",
   ];
