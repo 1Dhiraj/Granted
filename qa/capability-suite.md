@@ -105,6 +105,8 @@ Rules:
 |---|---|---|---|---|---|---|---|
 | 2026-07-11 | Claude (CLI, gateway local) | google/gemini-2.5-flash | 10 | 4 | 13 | **71%** (10/14 attempted) | first baseline run; 8 tasks not yet attempted |
 | 2026-07-11 (retest) | Claude (CLI, gateway local) | google/gemini-2.5-flash | 13 | 1 | 13 | **93%** (13/14 attempted) | F1/F3/F4 flipped to PASS after fixes; F2 pending (daily quota) |
+| 2026-07-18 | auto (subset harness) | chain default | 1 | 3 | - | **1/4** (subset) | nightly self-run; detail: qa/runs/2026-07-18T0047.md |
+| 2026-07-18 | auto (subset harness) | chain default | 2 | 2 | - | **2/4** (subset) | nightly self-run; detail: qa/runs/2026-07-18T0059.md |
 
 ## Retest 2026-07-11 (F-section, after defect fixes)
 
