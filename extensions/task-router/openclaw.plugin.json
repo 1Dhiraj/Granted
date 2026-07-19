@@ -13,6 +13,14 @@
         "type": "string",
         "description": "Model ref used when a message is classified as a desktop-automation task. Falls back to browserModel when unset."
       },
+      "chatModel": {
+        "type": "string",
+        "description": "Cheap model ref for chat-classified runs (questions, conversation, writing). When unset, chat runs stay on the agent's default model."
+      },
+      "liteModel": {
+        "type": "string",
+        "description": "Tiny model ref that answers trivial social messages (greetings, thanks) directly, skipping the agent loop, tool schemas, and full system prompt entirely."
+      },
       "classifierModel": {
         "type": "string",
         "description": "Cheap/free model ref used to classify messages the keyword heuristics can't decide (e.g. \"google/gemini-3.5-flash\"). When unset, undecided messages are not rerouted."

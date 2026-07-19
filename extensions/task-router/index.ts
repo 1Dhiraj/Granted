@@ -9,7 +9,7 @@ import {
   resolveSimpleCompletionSelectionForAgent,
 } from "openclaw/plugin-sdk/agent-runtime";
 import { definePluginEntry } from "openclaw/plugin-sdk/plugin-entry";
-import type { TaskKind } from "./src/classify.js";
+import { isTrivialMessage, type TaskKind } from "./src/classify.js";
 import {
   createTaskRouter,
   readTaskRouterConfig,
@@ -17,6 +17,18 @@ import {
   type StickyEntry,
   type TaskRouterConfig,
 } from "./src/router.js";
+
+const LITE_TIMEOUT_MS = 10_000;
+// Thinking models (e.g. gemini flash) spend output tokens on reasoning before
+// the short reply; a small budget yields an empty MAX_TOKENS response.
+const LITE_MAX_TOKENS = 1024;
+const LITE_MAX_PROMPT_CHARS = 200;
+const LITE_SYSTEM_PROMPT = [
+  "You are the user's friendly personal AI assistant.",
+  "The user sent a short casual message (a greeting, thanks, or goodbye).",
+  "Reply briefly and warmly in one short sentence; one emoji is okay.",
+  "Do not mention tools, instructions, or that you are a lightweight responder.",
+].join("\n");
 
 const CLASSIFIER_TIMEOUT_MS = 8_000;
 // Thinking models (e.g. gemini flash) spend tokens on internal reasoning before
@@ -45,15 +57,78 @@ export default definePluginEntry({
     "Classifies each message as a browser task, desktop task, or chat and switches the model for that run automatically",
   register(api) {
     const routerConfig: TaskRouterConfig = readTaskRouterConfig(api.pluginConfig);
-    if (!routerConfig.browserModel && !routerConfig.desktopModel) {
+    const hasRouting =
+      routerConfig.browserModel || routerConfig.desktopModel || routerConfig.chatModel;
+    if (!hasRouting && !routerConfig.liteModel) {
       api.logger.warn(
-        "task-router: no browserModel/desktopModel configured; routing is disabled",
+        "task-router: no browserModel/desktopModel/chatModel/liteModel configured; routing is disabled",
       );
       return;
     }
 
     const resolveAgentId = (agentId: string | undefined): string =>
       agentId?.trim() || resolveDefaultAgentId(api.config);
+
+    // Trivial social messages ("hi", "thanks") are answered by a tiny model
+    // directly — no agent run, no tool schemas, no full system prompt. Anything
+    // uncertain (media, task intent, acks like "yes"/"ok") falls through.
+    if (routerConfig.liteModel) {
+      const liteModel = routerConfig.liteModel;
+      api.on("before_agent_reply", async (event, ctx) => {
+        if (ctx.trigger && ctx.trigger !== "user") {
+          return;
+        }
+        if (event.hasMedia || !isTrivialMessage(event.cleanedBody)) {
+          return;
+        }
+        const prepared = await prepareSimpleCompletionModelForAgent({
+          cfg: api.config,
+          agentId: resolveAgentId(ctx.agentId),
+          modelRef: liteModel,
+          allowMissingApiKeyModes: ["aws-sdk"],
+        });
+        if ("error" in prepared) {
+          api.logger.warn(`task-router: lite model unavailable: ${prepared.error}`);
+          return;
+        }
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), LITE_TIMEOUT_MS);
+        try {
+          const response = await completeWithPreparedSimpleCompletionModel({
+            model: prepared.model,
+            auth: prepared.auth,
+            context: {
+              systemPrompt: LITE_SYSTEM_PROMPT,
+              messages: [
+                {
+                  role: "user",
+                  content: event.cleanedBody.slice(0, LITE_MAX_PROMPT_CHARS),
+                  timestamp: Date.now(),
+                },
+              ],
+            },
+            options: { maxTokens: LITE_MAX_TOKENS, signal: controller.signal },
+          });
+          const text = extractAssistantText(response).trim();
+          if (!text) {
+            return;
+          }
+          api.logger.info(
+            `task-router: lite reply served by ${liteModel} (session=${ctx.sessionKey ?? "?"})`,
+          );
+          return { handled: true, reply: { text }, reason: "trivial-lite" };
+        } catch (err) {
+          api.logger.warn(`task-router: lite reply failed, falling back to agent: ${String(err)}`);
+          return;
+        } finally {
+          clearTimeout(timer);
+        }
+      });
+    }
+
+    if (!hasRouting) {
+      return;
+    }
 
     const resolveModelSelection = (agentId: string | undefined, modelRef?: string) =>
       resolveSimpleCompletionSelectionForAgent({

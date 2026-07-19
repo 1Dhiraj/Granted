@@ -112,3 +112,31 @@ function pickAutomationKind(browserScore: number, desktopScore: number): TaskKin
   }
   return "browser";
 }
+
+const TRIVIAL_MAX_CHARS = 60;
+
+// Messages that never carry task intent: greetings, thanks, farewells, pings.
+// Deliberately EXCLUDES bare acknowledgements ("ok", "yes", "done", "sure") —
+// those are often answers to a question the agent just asked mid-task, and a
+// canned lite reply would hijack the flow.
+const TRIVIAL_PATTERNS: RegExp[] = [
+  /^(?:hi+|hello+|hey+|yo|hola|namaste|sup|wh?as+up|what'?s up)(?: there| granted| bot)?[!.😊🙂👋 ]*$/iu,
+  /^good (?:morning|afternoon|evening)(?: granted| bot)?[!,. ]*$/i,
+  /^(?:how are you|how'?s it going|how r u|hru)[?!. ]*$/i,
+  /^(?:thanks|thank you|thank u|thx|ty|tysm)(?: a lot| so much| bro| man| granted)?[!,.😊🙏 ]*$/iu,
+  /^(?:bye+|goodbye|see ya|see you|cya|good ?night|gn)[!,. ]*$/i,
+  /^(?:ping|test|testing)[!,. ]*$/i,
+];
+
+/**
+ * True only for short, standalone social messages (greetings, thanks, pings)
+ * that can be answered by a tiny model with no tools, no history, and no
+ * system prompt. Anything uncertain returns false so the full agent handles it.
+ */
+export function isTrivialMessage(prompt: string): boolean {
+  const text = prompt.replace(LEADING_BRACKET_PREFIX, "").trim();
+  if (!text || text.length > TRIVIAL_MAX_CHARS || text.includes("\n")) {
+    return false;
+  }
+  return TRIVIAL_PATTERNS.some((re) => re.test(text));
+}

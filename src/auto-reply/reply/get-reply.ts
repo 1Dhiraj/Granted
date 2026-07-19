@@ -548,7 +548,7 @@ export async function getReplyFromConfig(
         provider: sessionCtx.Provider,
       });
       const hookResult = await hookRunner.runBeforeAgentReply(
-        { cleanedBody },
+        { cleanedBody, hasMedia: hasInboundMedia(ctx) },
         {
           agentId,
           sessionKey: agentSessionKey,

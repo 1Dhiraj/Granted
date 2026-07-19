@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
-import { createTaskRouter, readTaskRouterConfig, resolveRouteModelRef } from "./router.js";
+import {
+  createTaskRouter,
+  readTaskRouterConfig,
+  resolveRouteModelRef,
+  type StickyEntry,
+} from "./router.js";
 
 const DEFAULT_REF = "nvidia/deepseek-ai/deepseek-v4-flash";
 
@@ -55,6 +60,43 @@ describe("createTaskRouter", () => {
     await expect(router.route({ prompt: "thanks!" }, defaultCtx)).resolves.toBeUndefined();
   });
 
+  it("routes chat prompts to the chat model when configured, without stickiness", async () => {
+    const router = makeRouter({
+      config: {
+        browserModel: "together/moonshotai/Kimi-K2.6",
+        chatModel: "google/gemini-2.0-flash",
+        stickyMinutes: 30,
+      },
+    });
+    await expect(
+      router.route({ prompt: "what is the capital of france?" }, defaultCtx),
+    ).resolves.toBe("chat");
+    // Automation classification still wins over chat on the next message.
+    await expect(router.route({ prompt: "open notepad and type hi" }, defaultCtx)).resolves.toBe(
+      "desktop",
+    );
+    // Mid-automation follow-up keeps the automation route, not chat.
+    await expect(
+      router.route({ prompt: "what does the error on screen mean?" }, defaultCtx),
+    ).resolves.toBe("desktop");
+  });
+
+  it("resolves the chat route to the chatModel ref", () => {
+    const config = readTaskRouterConfig({
+      chatModel: "google/gemini-2.0-flash",
+      browserModel: "together/x",
+    });
+    expect(resolveRouteModelRef(config, "chat")).toBe("google/gemini-2.0-flash");
+    expect(resolveRouteModelRef(config, "browser")).toBe("together/x");
+  });
+
+  it("leaves chat prompts alone when no chatModel is configured", async () => {
+    const router = makeRouter();
+    await expect(
+      router.route({ prompt: "write a haiku" }, { ...defaultCtx, sessionKey: "s9" }),
+    ).resolves.toBeUndefined();
+  });
+
   it("skips non-user triggers", async () => {
     const router = makeRouter();
     await expect(
@@ -104,7 +146,7 @@ describe("createTaskRouter", () => {
 
 describe("sticky persistence", () => {
   it("saves sticky routes and restores them in a new router instance", async () => {
-    let persisted: Record<string, { route: "browser" | "desktop"; expiresAt: number }> = {};
+    let persisted: Record<string, StickyEntry> = {};
     const stickyStore = {
       load: () => persisted,
       save: (entries: typeof persisted) => {

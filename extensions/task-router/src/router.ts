@@ -1,10 +1,14 @@
 import { classifyTaskHeuristic, type TaskKind } from "./classify.js";
 
-export type TaskRoute = "browser" | "desktop";
+export type TaskRoute = "browser" | "desktop" | "chat";
 
 export type TaskRouterConfig = {
   browserModel?: string;
   desktopModel?: string;
+  /** Cheap model for chat-classified runs (questions, conversation, writing). */
+  chatModel?: string;
+  /** Tiny model that answers trivial social messages without running the agent. */
+  liteModel?: string;
   classifierModel?: string;
   stickyMinutes: number;
 };
@@ -25,6 +29,8 @@ export function readTaskRouterConfig(raw: Record<string, unknown> | undefined): 
   return {
     browserModel: readString("browserModel"),
     desktopModel: readString("desktopModel"),
+    chatModel: readString("chatModel"),
+    liteModel: readString("liteModel"),
     classifierModel: readString("classifierModel"),
     stickyMinutes,
   };
@@ -34,6 +40,9 @@ export function resolveRouteModelRef(
   config: TaskRouterConfig,
   route: TaskRoute,
 ): string | undefined {
+  if (route === "chat") {
+    return config.chatModel;
+  }
   if (route === "desktop") {
     return config.desktopModel ?? config.browserModel;
   }
@@ -185,8 +194,15 @@ export function createTaskRouter(deps: TaskRouterDeps): TaskRouter {
       const stickyRoute = readSticky(ctx.sessionKey);
       if (stickyRoute) {
         writeSticky(ctx.sessionKey, stickyRoute);
+        return stickyRoute;
       }
-      return stickyRoute;
+
+      // No automation in flight: pure conversation can run on the cheap chat
+      // model. Never sticky — the next message re-classifies from scratch.
+      if (kind === "chat" && deps.config.chatModel) {
+        return "chat";
+      }
+      return undefined;
     },
   };
 }

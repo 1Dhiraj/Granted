@@ -2482,6 +2482,8 @@ export const stripPromptMutationFieldsFromLegacyHookResult = (
 export type PluginHookBeforeAgentReplyEvent = {
   /** The final user message text heading to the LLM (after commands/directives). */
   cleanedBody: string;
+  /** True when the inbound message carries media (image/audio/document). */
+  hasMedia?: boolean;
 };
 
 export type PluginHookBeforeAgentReplyResult = {

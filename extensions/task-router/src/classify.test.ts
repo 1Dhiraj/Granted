@@ -1,5 +1,38 @@
 import { describe, expect, it } from "vitest";
-import { classifyTaskHeuristic } from "./classify.js";
+import { classifyTaskHeuristic, isTrivialMessage } from "./classify.js";
+
+describe("isTrivialMessage", () => {
+  it("matches standalone greetings, thanks, and pings", () => {
+    expect(isTrivialMessage("hi")).toBe(true);
+    expect(isTrivialMessage("Hello!")).toBe(true);
+    expect(isTrivialMessage("heyy")).toBe(true);
+    expect(isTrivialMessage("good morning")).toBe(true);
+    expect(isTrivialMessage("how are you?")).toBe(true);
+    expect(isTrivialMessage("thanks a lot!")).toBe(true);
+    expect(isTrivialMessage("thank you so much 🙏")).toBe(true);
+    expect(isTrivialMessage("good night")).toBe(true);
+    expect(isTrivialMessage("ping")).toBe(true);
+    expect(isTrivialMessage("[Sat 2026-07-12 10:00 IST] hi")).toBe(true);
+  });
+
+  it("never matches acknowledgements that may answer an agent question", () => {
+    expect(isTrivialMessage("yes")).toBe(false);
+    expect(isTrivialMessage("ok")).toBe(false);
+    expect(isTrivialMessage("sure")).toBe(false);
+    expect(isTrivialMessage("done")).toBe(false);
+    expect(isTrivialMessage("go ahead")).toBe(false);
+    expect(isTrivialMessage("no")).toBe(false);
+  });
+
+  it("never matches messages with substance", () => {
+    expect(isTrivialMessage("hi, can you fix the login bug?")).toBe(false);
+    expect(isTrivialMessage("hello world program in python")).toBe(false);
+    expect(isTrivialMessage("thanks, now deploy it")).toBe(false);
+    expect(isTrivialMessage("hi\nremind me tomorrow at 9")).toBe(false);
+    expect(isTrivialMessage("")).toBe(false);
+    expect(isTrivialMessage("what's up with the build failure?")).toBe(false);
+  });
+});
 
 describe("classifyTaskHeuristic", () => {
   it("classifies explicit web tasks as browser", () => {
