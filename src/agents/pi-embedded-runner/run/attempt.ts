@@ -59,7 +59,7 @@ import {
 } from "../../channel-tools.js";
 import { DEFAULT_CONTEXT_TOKENS } from "../../defaults.js";
 import { resolveOpenClawDocsPath } from "../../docs-path.js";
-import { isTimeoutError } from "../../failover-error.js";
+import { FailoverError, isTimeoutError } from "../../failover-error.js";
 import { resolveHeartbeatPromptForSystemPrompt } from "../../heartbeat-system-prompt.js";
 import { resolveImageSanitizationLimits } from "../../image-sanitization.js";
 import { buildModelAliasLines } from "../../model-alias-lines.js";
@@ -1300,7 +1300,15 @@ export async function runEmbeddedAttempt(
             if (providerSpent >= providerSpendLimitUsd) {
               const reason = `Provider spend limit reached for "${params.provider}": $${providerSpent.toFixed(4)} spent of $${providerSpendLimitUsd.toFixed(2)} limit (agents.defaults.spendLimitUsdByProvider). Calls to this provider are blocked — raise or remove its limit in openclaw.json, or switch models to another provider.`;
               log.error(reason);
-              throw new Error(reason);
+              // Only THIS provider is blocked, so this must failover like any other
+              // billing failure. A plain Error carries no reason, which the fallback
+              // walker reads as a completed attempt — halting the chain and starving
+              // the configured backstops (e.g. a free local model) of their turn.
+              throw new FailoverError(reason, {
+                reason: "billing",
+                provider: params.provider,
+                model: params.modelId,
+              });
             }
           }
           return inner(model, context, options);

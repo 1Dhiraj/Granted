@@ -183,6 +183,25 @@ describe("buildAgentSystemPrompt", () => {
     );
   });
 
+  it("gives a bounded recovery loop so one failed step does not end the task", () => {
+    const prompt = buildAgentSystemPrompt({
+      workspaceDir: "/tmp/openclaw",
+    });
+
+    // Retry, but bounded and not identical — the two ways agents waste a task.
+    expect(prompt).toContain(
+      "When a step fails, do not stop and do not repeat the identical call. Read the error, change your approach, and try again — at most 2 more attempts per step.",
+    );
+    // Stale refs are the top cause of a repeated UI failure.
+    expect(prompt).toContain(
+      "Before retrying a UI action, look again (re-snapshot or re-read) instead of reusing stale positions or references from an earlier look.",
+    );
+    // Exhausting retries must produce an honest report, never a fabricated result.
+    expect(prompt).toContain(
+      "After the retries are used up, stop and report what you attempted and the exact last error.",
+    );
+  });
+
   it("narrows silent reply guidance to true no-delivery cases", () => {
     const prompt = buildAgentSystemPrompt({
       workspaceDir: "/tmp/openclaw",

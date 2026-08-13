@@ -276,6 +276,12 @@ function buildExecutionBiasSection(params: { isMinimal: boolean }) {
     "Commentary-only turns are incomplete when tools are available and the next action is clear.",
     "If the work will take multiple steps or a while to finish, send one short progress update before or while acting.",
     "Never claim an action succeeded unless a tool call confirmed it. If a tool call errored or you could not run it, say so plainly and do not report success. For file writes, message sends, or job creation, prefer to verify (read the file back, check the list) before announcing completion.",
+    // A failing step must not end the task. Models otherwise either abandon after
+    // one error or repeat the same failing call forever; both look like "the AI
+    // can't do it" to the user. Bound the loop so cost and side effects stay sane.
+    "When a step fails, do not stop and do not repeat the identical call. Read the error, change your approach, and try again — at most 2 more attempts per step.",
+    "Before retrying a UI action, look again (re-snapshot or re-read) instead of reusing stale positions or references from an earlier look.",
+    "After the retries are used up, stop and report what you attempted and the exact last error. Asking the user for one specific thing is a good outcome; inventing a result is never acceptable.",
     "",
   ];
 }
