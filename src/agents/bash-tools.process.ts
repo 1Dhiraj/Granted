@@ -89,6 +89,28 @@ function resolvePollWaitMs(value: unknown) {
   return 0;
 }
 
+/**
+ * `exec` reports a backgrounded command as "session <name>, pid <number>", so
+ * callers reach for the pid — which is not the session id. The bare "No session
+ * found for X" that followed was a dead end: it named the bad value without
+ * saying what a good one looks like. Observed cost: an agent burned its whole
+ * remaining budget recovering from this on a task it had otherwise solved.
+ * Name the live sessions instead so the next call can succeed.
+ */
+function describeAvailableSessions(): string {
+  const entries = [
+    ...listRunningSessions().map((s) => ({ id: s.id, pid: s.pid, state: "running" })),
+    ...listFinishedSessions().map((s) => ({ id: s.id, pid: undefined, state: s.status })),
+  ].slice(0, 8);
+  if (entries.length === 0) {
+    return " No sessions exist right now (use action=list to confirm).";
+  }
+  const rendered = entries
+    .map((e) => `${e.id}${e.pid ? ` (pid ${e.pid})` : ""} [${e.state}]`)
+    .join(", ");
+  return ` Use the session id, not the pid. Available: ${rendered}. action=list shows all.`;
+}
+
 function failText(text: string): AgentToolResult<unknown> {
   return {
     content: [
@@ -335,7 +357,7 @@ export function createProcessTool(
               };
             }
             resetPollRetrySuggestion(params.sessionId);
-            return failText(`No session found for ${params.sessionId}`);
+            return failText(`No session found for ${params.sessionId}.${describeAvailableSessions()}`);
           }
           if (!scopedSession.backgrounded) {
             return failText(`Session ${params.sessionId} is not backgrounded.`);
@@ -462,7 +484,7 @@ export function createProcessTool(
             content: [
               {
                 type: "text",
-                text: `No session found for ${params.sessionId}`,
+                text: `No session found for ${params.sessionId}.${describeAvailableSessions()}`,
               },
             ],
             details: { status: "failed" },
@@ -660,7 +682,7 @@ export function createProcessTool(
             content: [
               {
                 type: "text",
-                text: `No session found for ${params.sessionId}`,
+                text: `No session found for ${params.sessionId}.${describeAvailableSessions()}`,
               },
             ],
             details: { status: "failed" },
