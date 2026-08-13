@@ -333,13 +333,50 @@ export const LAUNCH_SCRIPT =
   PREAMBLE +
   `
 if ($A.appArgs) {
-  Start-Process -FilePath ([string]$A.app) -ArgumentList ([string]$A.appArgs)
+  $proc = Start-Process -FilePath ([string]$A.app) -ArgumentList ([string]$A.appArgs) -PassThru
 } else {
-  Start-Process -FilePath ([string]$A.app)
+  $proc = Start-Process -FilePath ([string]$A.app) -PassThru
 }
-Start-Sleep -Milliseconds 1500
+
+# Wait for the app's OWN window instead of sleeping a fixed interval and hoping.
+# A blind sleep returns while the previous app still holds focus, and the caller
+# then types into whatever window happens to be in front — someone else's editor.
+$deadline = (Get-Date).AddMilliseconds(10000)
+$h = [IntPtr]::Zero
+while ((Get-Date) -lt $deadline) {
+  Start-Sleep -Milliseconds 200
+  try { $proc.Refresh() } catch { }
+  if ($proc -and -not $proc.HasExited -and $proc.MainWindowHandle -ne 0) {
+    $h = $proc.MainWindowHandle
+    break
+  }
+  # UWP/store apps and single-instance apps hand off to a host process and the
+  # process we started exits immediately, so match the window by name instead.
+  $base = [System.IO.Path]::GetFileNameWithoutExtension([string]$A.app)
+  $byName = Find-WindowHandle $base
+  if ($byName -ne [IntPtr]::Zero) { $h = $byName; break }
+}
+
+$focused = $false
+if ($h -ne [IntPtr]::Zero) {
+  $focused = [DeskNative]::FocusWindow($h)
+  Start-Sleep -Milliseconds 250
+}
 $fg = Get-ForegroundInfo
-@{ ok = $true; launched = [string]$A.app; foreground = $fg } | ConvertTo-Json -Compress -Depth 5
+# Only claim success when the launched window is genuinely in front. Anything
+# else must be reported so the caller focuses or snapshots before acting.
+$isFront = ($h -ne [IntPtr]::Zero) -and ($fg.hwnd -eq [int64]$h)
+$result = @{
+  ok = $isFront
+  launched = [string]$A.app
+  focused = $isFront
+  foreground = $fg
+}
+if ($h -ne [IntPtr]::Zero) { $result.windowHandle = [int64]$h }
+if (-not $isFront) {
+  $result.error = 'launched "' + [string]$A.app + '" but its window is not in the foreground (front window: "' + $fg.title + '"). DO NOT type yet - it would go to that window. Use action=focus with the app title, then snapshot to confirm, before acting.'
+}
+$result | ConvertTo-Json -Compress -Depth 5
 `;
 
 export const SNAPSHOT_SCRIPT =
