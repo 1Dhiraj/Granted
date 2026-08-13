@@ -35,8 +35,81 @@ function runCli(args, timeoutMs = TURN_TIMEOUT_MS) {
   });
 }
 
+// Every task shares agent:main:main, so without a reset each task inherits the
+// previous ones' transcript and the later tasks blow the context window — they
+// then "fail" for reasons that have nothing to do with the capability measured.
+// Reset gives each task the same clean starting conditions.
+async function resetMainSession() {
+  await runCli(
+    ["gateway", "call", "sessions.reset", "--params", '{"key":"agent:main:main","reason":"new"}'],
+    120_000,
+  );
+}
+
 function agentTurn(message) {
   return runCli(["agent", "--agent", "main", "-m", message]);
+}
+
+// Free model tiers cap requests per MINUTE, and one agentic task burns many
+// calls. Without a gap between tasks the run strangles itself and every task
+// fails on rate limits rather than on capability — which measures the tier,
+// not the product.
+const TASK_GAP_MS = 45_000;
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// Run a subset:  SCORECARD_ONLY=S1,S2 node qa/run-capability-subset.mjs
+// Tasks needing a visible desktop (G1) are invalid when the gateway was started
+// from a non-interactive context, so they must be skippable.
+const ONLY = (process.env.SCORECARD_ONLY ?? "")
+  .split(",")
+  .map((s) => s.trim().toUpperCase())
+  .filter(Boolean);
+
+// An unreachable model is not a capability result. Without this, a provider
+// outage silently scores as PASS (the honesty task matches on the word "error")
+// or as FAIL (everything else) — both lie about the product.
+const INFRA_ERROR_RE =
+  /FailoverError|HTTP 401|Invalid API key|spend limit reached|All models failed|no api key found/i;
+
+function isInfraBlocked(text) {
+  const value = text ?? "";
+  if (INFRA_ERROR_RE.test(value)) {
+    return true;
+  }
+  // The agent produced nothing at all (gateway still booting, connection
+  // dropped). That is an unreachable run, not a capability verdict.
+  return /agent said:\s*$/.test(value.trimEnd());
+}
+
+/** Provider spend straight from the same source the spend guard reads. */
+async function readSpend() {
+  const res = await runCli(["gateway", "call", "usage.cost", "--params", '{"days":90}'], 120_000);
+  const start = res.stdout.indexOf("{");
+  if (start < 0) {
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(res.stdout.slice(start));
+    return { providers: parsed.providerCosts ?? {}, total: parsed.totals?.totalCost ?? 0 };
+  } catch {
+    return null;
+  }
+}
+
+function formatSpendDelta(before, after) {
+  if (!before || !after) {
+    return "spend: unavailable";
+  }
+  const names = new Set([...Object.keys(before.providers), ...Object.keys(after.providers)]);
+  const moved = [];
+  for (const name of [...names].sort()) {
+    const delta = (after.providers[name] ?? 0) - (before.providers[name] ?? 0);
+    if (Math.abs(delta) >= 0.00005) {
+      moved.push(`${name} +$${delta.toFixed(4)} (now $${(after.providers[name] ?? 0).toFixed(4)})`);
+    }
+  }
+  const totalDelta = after.total - before.total;
+  return `spend this run: $${totalDelta.toFixed(4)}${moved.length ? ` — ${moved.join(", ")}` : ""}`;
 }
 
 // Each task: ask like a user would, then verify the effect ourselves.
@@ -113,6 +186,95 @@ const tasks = [
     },
   },
   {
+    // The flagship capability: drive an app that has no API at all.
+    id: "G1",
+    name: "GUI: drive Notepad and save a file",
+    run: async () => {
+      const target = path.join(scratch, "gui-note.txt");
+      const res = await agentTurn(
+        `Open Notepad on my computer, type exactly: hello granted, then save it as ${target}. Confirm when the file is saved.`,
+      );
+      try {
+        const content = fs.readFileSync(target, "utf8").trim();
+        return {
+          ok: content.toLowerCase().includes("hello granted"),
+          evidence: `file on disk: ${JSON.stringify(content.slice(0, 80))}`,
+        };
+      } catch {
+        return {
+          ok: false,
+          evidence: `NO FILE. agent said: ${(res.stdout + res.stderr).trim().slice(-200)}`,
+        };
+      }
+    },
+  },
+  {
+    // Write code, RUN it, and produce a checkable number — not just describe it.
+    id: "S1",
+    name: "write a program, run it, produce the right answer",
+    run: async () => {
+      const dir = path.join(scratch, "proj");
+      fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(
+        path.join(dir, "sales.csv"),
+        "product,units,price\nwidget,3,10\ngadget,2,25\nbolt,10,1.5\n",
+        "utf8",
+      );
+      const totalPath = path.join(dir, "total.txt");
+      const res = await agentTurn(
+        `In the folder ${dir} there is a sales.csv. Write a script that computes total revenue (units * price summed) and writes ONLY the number to ${totalPath}. Actually run the script, then tell me the total.`,
+      );
+      try {
+        const raw = fs.readFileSync(totalPath, "utf8").trim();
+        const num = Number.parseFloat(raw.replace(/[^0-9.]/g, ""));
+        return { ok: Math.abs(num - 95) < 0.01, evidence: `total.txt=${JSON.stringify(raw)} (want 95)` };
+      } catch {
+        return {
+          ok: false,
+          evidence: `NO total.txt. agent said: ${(res.stdout + res.stderr).trim().slice(-200)}`,
+        };
+      }
+    },
+  },
+  {
+    // Real debugging: the test is correct, the source is wrong, fix must be real.
+    id: "S2",
+    name: "find and fix a real bug",
+    run: async () => {
+      const dir = path.join(scratch, "bug");
+      fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(path.join(dir, "math.js"), "export function add(a, b) {\n  return a - b;\n}\n", "utf8");
+      fs.writeFileSync(
+        path.join(dir, "test.mjs"),
+        'import { add } from "./math.js";\nif (add(2, 3) !== 5) { console.error("FAIL"); process.exit(1); }\nconsole.log("PASS");\n',
+        "utf8",
+      );
+      await agentTurn(
+        `In ${dir}, running "node test.mjs" fails. Find the bug, fix it, and run the test again to prove it passes. Tell me what was wrong.`,
+      );
+      try {
+        const src = fs.readFileSync(path.join(dir, "math.js"), "utf8");
+        return {
+          ok: /return\s+a\s*\+\s*b/.test(src),
+          evidence: `math.js: ${JSON.stringify(src.trim().slice(0, 60))}`,
+        };
+      } catch (err) {
+        return { ok: false, evidence: `unreadable: ${err?.message ?? err}` };
+      }
+    },
+  },
+  {
+    id: "C2",
+    name: "open a real page and report its title",
+    run: async () => {
+      const res = await agentTurn(
+        "Open https://example.com in a browser and tell me the exact page title.",
+      );
+      const out = (res.stdout + res.stderr).toLowerCase();
+      return { ok: out.includes("example domain"), evidence: (res.stdout + res.stderr).trim().slice(-160) };
+    },
+  },
+  {
     id: "I1",
     name: "honest failure reporting",
     run: async () => {
@@ -132,8 +294,23 @@ const tasks = [
   },
 ];
 
+const selected = ONLY.length ? tasks.filter((t) => ONLY.includes(t.id.toUpperCase())) : tasks;
+if (!selected.length) {
+  console.error(`No tasks matched SCORECARD_ONLY=${ONLY.join(",")}`);
+  process.exit(2);
+}
+
+const spendBefore = await readSpend();
+if (spendBefore) {
+  console.log(`spend before: $${spendBefore.total.toFixed(4)}`);
+}
+
 const results = [];
-for (const task of tasks) {
+for (const [index, task] of selected.entries()) {
+  if (index > 0) {
+    await sleep(TASK_GAP_MS);
+  }
+  await resetMainSession();
   const startedAt = Date.now();
   let outcome;
   try {
@@ -141,12 +318,24 @@ for (const task of tasks) {
   } catch (err) {
     outcome = { ok: false, evidence: `harness error: ${err?.message ?? err}` };
   }
+  // A model we could not reach tells us nothing about the product either way.
+  if (!outcome.ok && isInfraBlocked(outcome.evidence)) {
+    outcome = { ...outcome, blocked: true };
+  }
   results.push({ ...task, ...outcome, ms: Date.now() - startedAt });
-  console.log(`${outcome.ok ? "PASS" : "FAIL"} ${task.id} ${task.name} (${outcome.evidence})`);
+  const label = outcome.blocked ? "BLOCKED" : outcome.ok ? "PASS" : "FAIL";
+  console.log(`${label} ${task.id} ${task.name} (${outcome.evidence})`);
 }
 
+const spendAfter = await readSpend();
+const spendLine = formatSpendDelta(spendBefore, spendAfter);
+console.log(spendLine);
+
 const pass = results.filter((r) => r.ok).length;
-const score = `${pass}/${results.length}`;
+const blocked = results.filter((r) => r.blocked).length;
+const attempted = results.length - blocked;
+// Score over what we could actually attempt; blocked runs are reported, not graded.
+const score = attempted > 0 ? `${pass}/${attempted}` : `0/0 (all ${blocked} blocked)`;
 
 // Detail file
 const runsDir = path.join(repoRoot, "qa", "runs");
@@ -159,8 +348,10 @@ fs.writeFileSync(
     "",
     ...results.map(
       (r) =>
-        `- ${r.ok ? "PASS" : "FAIL"} **${r.id}** ${r.name} (${Math.round(r.ms / 1000)}s) — ${r.evidence}`,
+        `- ${r.blocked ? "BLOCKED" : r.ok ? "PASS" : "FAIL"} **${r.id}** ${r.name} (${Math.round(r.ms / 1000)}s) — ${r.evidence}`,
     ),
+    "",
+    `_${spendLine}_`,
     "",
   ].join("\n"),
   "utf8",
@@ -178,7 +369,7 @@ try {
     while (insertAt < suite.length && suite.startsWith("|", insertAt)) {
       insertAt = suite.indexOf("\n", insertAt) + 1;
     }
-    const row = `| ${new Date().toISOString().slice(0, 10)} | auto (subset harness) | chain default | ${pass} | ${results.length - pass} | - | **${score}** (subset) | nightly self-run; detail: qa/runs/${runStamp}.md |\n`;
+    const row = `| ${new Date().toISOString().slice(0, 10)} | auto (subset harness) | chain default | ${pass} | ${attempted - pass} | ${blocked} | **${score}** (subset) | nightly self-run; detail: qa/runs/${runStamp}.md |\n`;
     fs.writeFileSync(suitePath, suite.slice(0, insertAt) + row + suite.slice(insertAt), "utf8");
   }
 } catch (err) {
