@@ -1267,6 +1267,11 @@ export function describeExecTool(params?: { agentId?: string; hasCronTool?: bool
   const lines: string[] = [base];
   lines.push(
     "IMPORTANT (Windows): Run executables directly — do NOT wrap commands in `cmd /c`, `powershell -Command`, `& ` prefix, or WSL. Use backslash paths (C:\\path), not forward slashes. Use short executable names (e.g. `node`, `python3`) instead of full paths.",
+    // Observed failure: a test printed FAIL and exited 1 (exactly the signal the
+    // agent needed), then the agent re-ran it with 2>&1, got a NativeCommandError
+    // blob, concluded the COMMAND was broken rather than the code, and never
+    // opened the source file.
+    "IMPORTANT (Windows): never append `2>&1` — stderr is already captured for you. On Windows it wraps each stderr line in a PowerShell NativeCommandError, which makes an ordinary program failure look like a broken command and sends you chasing the wrong bug. A non-zero exit with program output is a normal failure: read the relevant source file next, do not re-run the command in a different shape.",
   );
   try {
     const approvalsFile = loadExecApprovals();
