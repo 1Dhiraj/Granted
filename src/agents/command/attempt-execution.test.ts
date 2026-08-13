@@ -23,7 +23,23 @@ describe("resolveFallbackRetryPrompt", () => {
         isFallbackRetry: true,
         sessionHasHistory: true,
       }),
-    ).toBe("Continue where you left off. The previous model attempt failed or timed out.");
+    ).toBe(
+      "The previous attempt failed or timed out before finishing. Do not assume any earlier step succeeded — it may have done nothing at all. First check the real current state (read the file, list the directory, take a fresh snapshot), then carry on from what you actually find.",
+    );
+  });
+
+  it("never claims prior progress, which invites the model to fabricate a result", () => {
+    const prompt = resolveFallbackRetryPrompt({
+      body: originalBody,
+      isFallbackRetry: true,
+      sessionHasHistory: true,
+    });
+
+    // Regression: a real run received this prompt 4x, had done nothing, and then
+    // wrote a literal "0" while reporting that a script had computed the total.
+    expect(prompt).not.toMatch(/continue where you left off/i);
+    expect(prompt).toMatch(/do not assume any earlier step succeeded/i);
+    expect(prompt).toMatch(/check the real current state/i);
   });
 
   it("preserves original body for fallback retry when session has no history (subagent spawn)", () => {

@@ -130,7 +130,13 @@ export function resolveFallbackRetryPrompt(params: {
   if (!params.sessionHasHistory) {
     return params.body;
   }
-  return "Continue where you left off. The previous model attempt failed or timed out.";
+  // Do NOT say "continue where you left off": the previous attempt often failed
+  // before doing anything at all, so that phrasing asserts progress that may not
+  // exist. Observed consequence — after repeated recovery prompts the model
+  // invented a finished result (wrote a literal "0" to the output file, then
+  // reported "the script has computed the total"). Tell it to establish the real
+  // state first instead of assuming its earlier self got somewhere.
+  return "The previous attempt failed or timed out before finishing. Do not assume any earlier step succeeded — it may have done nothing at all. First check the real current state (read the file, list the directory, take a fresh snapshot), then carry on from what you actually find.";
 }
 
 export function prependInternalEventContext(
