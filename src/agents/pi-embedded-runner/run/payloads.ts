@@ -25,6 +25,7 @@ import {
   formatReasoningMessage,
 } from "../../pi-embedded-utils.js";
 import { isExecLikeToolName, type ToolErrorSummary } from "../../tool-error-summary.js";
+import { describesUnappliedChange, UNAPPLIED_CHANGE_WARNING } from "../../unapplied-change.js";
 import { isLikelyMutatingToolName } from "../../tool-mutation.js";
 
 type ToolMetaEntry = { toolName: string; meta?: string };
@@ -357,6 +358,19 @@ export function buildEmbeddedRunPayloads(params: {
         });
       }
     }
+  }
+
+  // A turn can fail without any tool erroring: the model diagnoses the problem,
+  // prints the corrected code, promises to apply it — and never calls a write.
+  // Nothing lied, so the false-success guard above stays silent, and the user is
+  // told a fix happened when the file is untouched. Surface it.
+  if (
+    describesUnappliedChange({
+      replyText: params.assistantTexts.join("\n"),
+      toolNames: params.toolMetas.map((meta) => meta.toolName),
+    })
+  ) {
+    replyItems.push({ text: UNAPPLIED_CHANGE_WARNING, isError: true });
   }
 
   const hasAudioAsVoiceTag = replyItems.some((item) => item.audioAsVoice);
