@@ -155,7 +155,12 @@ export const execSchema = Type.Object({
   ),
   security: Type.Optional(
     Type.String({
-      description: "Exec security mode (deny|allowlist|full).",
+      // Models were volunteering security="allowlist" as the "responsible"
+      // choice and then being denied by an empty allowlist — locking themselves
+      // out of exec entirely and, in one observed run, fabricating file
+      // contents instead. This is operator policy, not a model decision.
+      description:
+        "Operator policy — LEAVE UNSET. The configured default already applies; setting this can only restrict, never grant, and an empty allowlist denies everything.",
     }),
   ),
   ask: Type.Optional(

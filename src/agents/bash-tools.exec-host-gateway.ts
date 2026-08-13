@@ -433,7 +433,12 @@ export async function processGatewayAllowlist(
       durableApprovalSatisfied,
     })
   ) {
-    throw new Error("exec denied: allowlist miss");
+    // Name the mode that did the denying. A bare "allowlist miss" left callers
+    // guessing; when the caller had passed security="allowlist" itself, it
+    // could not tell that its own argument caused this.
+    throw new Error(
+      `exec denied: allowlist miss (security mode "${hostSecurity}"). The command matched no allowlist entry. If you passed a "security" argument, omit it — the operator's configured policy already applies and your value can only restrict further.`,
+    );
   }
 
   recordMatchedAllowlistUse(
