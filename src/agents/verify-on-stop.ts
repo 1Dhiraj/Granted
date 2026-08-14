@@ -104,6 +104,12 @@ export type TurnToolCall = {
   command?: string;
   /** A failed call changed nothing, so it needs a retry rather than verification. */
   isError?: boolean;
+  /**
+   * Caller's own mutation verdict (Granted classifies this per call from the
+   * real arguments). It is argument-aware, so it wins over the name/action
+   * heuristics below when present.
+   */
+  mutating?: boolean;
 };
 
 export type VerifyOnStopParams = {
@@ -125,6 +131,9 @@ function normalize(value: string | undefined): string {
 export function isMutatingCall(call: TurnToolCall): boolean {
   if (call.isError) {
     return false;
+  }
+  if (typeof call.mutating === "boolean") {
+    return call.mutating;
   }
   const name = normalize(call.name);
   const action = normalize(call.action);
@@ -221,6 +230,22 @@ export function buildVerifyOnStopNudge(params: VerifyOnStopParams): string | nul
     `If the check shows it did not work, say so and fix it. If you cannot verify it, say ` +
     `plainly that it is unverified and why. Do not repeat the claim without evidence.]`
   );
+}
+
+/**
+ * Short user-facing note for the same condition, for surfaces that cannot spend
+ * another model turn. Says only what is true — the claim was not checked — and
+ * never contradicts a result that may well be correct.
+ */
+export function buildUnverifiedClaimWarning(params: {
+  toolCalls: TurnToolCall[];
+  replyText: string;
+}): string | null {
+  const due = buildVerifyOnStopNudge({
+    toolCalls: params.toolCalls,
+    replyText: params.replyText,
+  });
+  return due ? "⚠️ Unverified — the agent did not check this result before reporting it." : null;
 }
 
 export { DEFAULT_MAX_VERIFY_ATTEMPTS };

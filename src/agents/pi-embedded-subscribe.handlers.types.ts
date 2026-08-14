@@ -26,7 +26,14 @@ export type ToolCallSummary = {
 
 export type EmbeddedPiSubscribeState = {
   assistantTexts: string[];
-  toolMetas: Array<{ toolName?: string; meta?: string }>;
+  // `isError`/`mutating` let the turn-end verification gate tell a real state
+  // change from a lookup, and a completed change from a failed one.
+  toolMetas: Array<{
+    toolName?: string;
+    meta?: string;
+    isError?: boolean;
+    mutating?: boolean;
+  }>;
   toolMetaById: Map<string, ToolCallSummary>;
   toolSummaryById: Set<string>;
   itemActiveIds: Set<string>;

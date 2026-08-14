@@ -763,7 +763,12 @@ export async function handleToolExecutionEnd(
   toolStartData.delete(toolStartKey);
   const callSummary = ctx.state.toolMetaById.get(toolCallId);
   const meta = callSummary?.meta;
-  ctx.state.toolMetas.push({ toolName, meta });
+  ctx.state.toolMetas.push({
+    toolName,
+    meta,
+    isError: isToolError,
+    mutating: callSummary?.mutatingAction,
+  });
   ctx.state.toolMetaById.delete(toolCallId);
   ctx.state.toolSummaryById.delete(toolCallId);
   if (isToolError) {

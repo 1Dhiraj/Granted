@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildUnverifiedClaimWarning,
   buildVerifyOnStopNudge,
   claimsSuccess,
   isMutatingCall,
@@ -144,6 +145,35 @@ describe("buildVerifyOnStopNudge", () => {
     expect(
       buildVerifyOnStopNudge({
         toolCalls: [{ name: "write", isError: true }],
+        replyText: "The file has been created.",
+      }),
+    ).toBeNull();
+  });
+});
+
+describe("caller-supplied mutation verdict", () => {
+  it("trusts the caller's argument-aware classification over name heuristics", () => {
+    // A browser snapshot is not a mutation even though the caller may name it
+    // ambiguously; and an exec that looks read-only IS one when args say so.
+    expect(isMutatingCall({ name: "browser", mutating: false })).toBe(false);
+    expect(isMutatingCall({ name: "exec", command: "cat x", mutating: true })).toBe(true);
+  });
+});
+
+describe("buildUnverifiedClaimWarning", () => {
+  it("flags an unverified claim in one honest line", () => {
+    expect(
+      buildUnverifiedClaimWarning({
+        toolCalls: [{ name: "write" }],
+        replyText: "The file has been created.",
+      }),
+    ).toContain("Unverified");
+  });
+
+  it("stays silent when the work was verified", () => {
+    expect(
+      buildUnverifiedClaimWarning({
+        toolCalls: [{ name: "write" }, { name: "read" }],
         replyText: "The file has been created.",
       }),
     ).toBeNull();
