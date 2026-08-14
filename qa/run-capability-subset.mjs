@@ -249,14 +249,21 @@ const tasks = [
         'import { add } from "./math.js";\nif (add(2, 3) !== 5) { console.error("FAIL"); process.exit(1); }\nconsole.log("PASS");\n',
         "utf8",
       );
-      await agentTurn(
+      const res = await agentTurn(
         `In ${dir}, running "node test.mjs" fails. Find the bug, fix it, and run the test again to prove it passes. Tell me what was wrong.`,
       );
       try {
         const src = fs.readFileSync(path.join(dir, "math.js"), "utf8");
+        const fixed = /return\s+a\s*\+\s*b/.test(src);
+        // Carry the agent's own words when it failed: without them an outage
+        // (rate limit, retired model) is indistinguishable from a bad fix, and
+        // the BLOCKED check has nothing to match on.
+        const said = (res.stdout + res.stderr).trim().slice(-200);
         return {
-          ok: /return\s+a\s*\+\s*b/.test(src),
-          evidence: `math.js: ${JSON.stringify(src.trim().slice(0, 60))}`,
+          ok: fixed,
+          evidence: fixed
+            ? `math.js: ${JSON.stringify(src.trim().slice(0, 60))}`
+            : `math.js unchanged; agent said: ${said}`,
         };
       } catch (err) {
         return { ok: false, evidence: `unreadable: ${err?.message ?? err}` };
