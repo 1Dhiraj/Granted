@@ -3,6 +3,7 @@ import type { OpenClawConfig } from "../config/config.js";
 import {
   applyLocalSetupWorkspaceConfig,
   ONBOARDING_DEFAULT_DM_SCOPE,
+  ONBOARDING_DEFAULT_SPEND_LIMIT_USD,
   ONBOARDING_DEFAULT_TOOLS_PROFILE,
 } from "./onboard-config.js";
 
@@ -19,6 +20,31 @@ describe("applyLocalSetupWorkspaceConfig", () => {
     expect(result.gateway?.mode).toBe("local");
     expect(result.agents?.defaults?.workspace).toBe("/tmp/workspace");
     expect(result.tools?.profile).toBe(ONBOARDING_DEFAULT_TOOLS_PROFILE);
+  });
+
+  // A fresh install runs heartbeats, cron jobs and retries against a paid key
+  // with nobody watching. Shipping without a ceiling means the first sign of a
+  // stuck job is the bill.
+  it("gives a new install a spend ceiling", () => {
+    const result = applyLocalSetupWorkspaceConfig({}, "/tmp/workspace");
+    expect(result.agents?.defaults?.spendLimitUsd).toBe(ONBOARDING_DEFAULT_SPEND_LIMIT_USD);
+    expect(ONBOARDING_DEFAULT_SPEND_LIMIT_USD).toBeGreaterThan(0);
+  });
+
+  it("never overrides a spend limit the user already chose", () => {
+    const result = applyLocalSetupWorkspaceConfig(
+      { agents: { defaults: { spendLimitUsd: 250 } } },
+      "/tmp/workspace",
+    );
+    expect(result.agents?.defaults?.spendLimitUsd).toBe(250);
+  });
+
+  it("respects a deliberate 0, which means no ceiling", () => {
+    const result = applyLocalSetupWorkspaceConfig(
+      { agents: { defaults: { spendLimitUsd: 0 } } },
+      "/tmp/workspace",
+    );
+    expect(result.agents?.defaults?.spendLimitUsd).toBe(0);
   });
 
   it("preserves existing dmScope when already configured", () => {
