@@ -332,6 +332,16 @@ $result | ConvertTo-Json -Compress -Depth 5
 export const LAUNCH_SCRIPT =
   PREAMBLE +
   `
+# Record every window that exists BEFORE launching. Single-instance apps
+# (Notepad, Word, Chrome) do not open a second window - they focus the one the
+# user already had open, holding the user's own unsaved document. Without this
+# snapshot, "the app is focused" is indistinguishable from "I am pointed at the
+# user's work", and the next keystroke edits their file.
+$preExistingWindows = @{}
+foreach ($p in @(Get-Process | Where-Object { $_.MainWindowHandle -ne 0 })) {
+  $preExistingWindows[[int64]$p.MainWindowHandle] = $true
+}
+
 if ($A.appArgs) {
   $proc = Start-Process -FilePath ([string]$A.app) -ArgumentList ([string]$A.appArgs) -PassThru
 } else {
@@ -366,15 +376,20 @@ $fg = Get-ForegroundInfo
 # Only claim success when the launched window is genuinely in front. Anything
 # else must be reported so the caller focuses or snapshots before acting.
 $isFront = ($h -ne [IntPtr]::Zero) -and ($fg.hwnd -eq [int64]$h)
+$reusedExisting = ($h -ne [IntPtr]::Zero) -and $preExistingWindows.ContainsKey([int64]$h)
 $result = @{
-  ok = $isFront
+  ok = ($isFront -and -not $reusedExisting)
   launched = [string]$A.app
   focused = $isFront
+  reusedExistingWindow = $reusedExisting
   foreground = $fg
 }
 if ($h -ne [IntPtr]::Zero) { $result.windowHandle = [int64]$h }
 if (-not $isFront) {
   $result.error = 'launched "' + [string]$A.app + '" but its window is not in the foreground (front window: "' + $fg.title + '"). DO NOT type yet - it would go to that window. Use action=focus with the app title, then snapshot to confirm, before acting.'
+} elseif ($reusedExisting) {
+  # Typing here would edit whatever the user already had open. Refuse loudly.
+  $result.error = 'no new window was created - "' + [string]$A.app + '" was already running and this focused an EXISTING window ("' + $fg.title + '") that may contain the user''s own unsaved work. DO NOT type or send keys into it. Open a fresh document first (for a text editor, act kind=key keys=ctrl+n), then snapshot to confirm the new window is empty before typing.'
 }
 $result | ConvertTo-Json -Compress -Depth 5
 `;
@@ -533,9 +548,30 @@ if ($status -eq 'ok') {
 export const KEY_SCRIPT =
   PREAMBLE +
   `
+# Shortcuts are the most destructive input this tool sends: ctrl+s overwrites a
+# file, alt+f4 closes an app, ctrl+n discards nothing but changes the target.
+# TypeText already refuses to keep typing when focus moves or the human grabs the
+# mouse; sending keys had no such guard and always reported success, so a
+# mistimed ctrl+s could land in the user's own document. Same protection here.
+$fgBefore = [DeskNative]::GetForegroundWindow()
+
 $mods = @()
 if ($A.modifiers) { $mods = @($A.modifiers | ForEach-Object { [byte]$_ }) }
 $vk = [byte]$A.key
+
+# Re-check right before pressing: focus can move between the caller deciding to
+# send and the keystroke actually landing.
+$fgNow = [DeskNative]::GetForegroundWindow()
+if ($fgNow -ne $fgBefore) {
+  @{
+    ok = $false
+    pressed = $null
+    aborted = 'focus-changed'
+    error = 'the foreground window changed before the shortcut was sent - it was NOT pressed, because it would have gone to the wrong window. Re-focus the target and retry.'
+  } | ConvertTo-Json -Compress
+  exit 0
+}
+
 foreach ($m in $mods) { [DeskNative]::keybd_event($m, 0, 0, [UIntPtr]::Zero) }
 Start-Sleep -Milliseconds 30
 [DeskNative]::keybd_event($vk, 0, 0, [UIntPtr]::Zero)
@@ -543,7 +579,11 @@ Start-Sleep -Milliseconds 30
 [DeskNative]::keybd_event($vk, 0, 2, [UIntPtr]::Zero)
 [array]::Reverse($mods)
 foreach ($m in $mods) { [DeskNative]::keybd_event($m, 0, 2, [UIntPtr]::Zero) }
-@{ ok = $true; pressed = [string]$A.label } | ConvertTo-Json -Compress
+
+# Report where it actually landed so the caller can verify rather than assume.
+$sb = New-Object System.Text.StringBuilder 512
+[void][DeskNative]::GetWindowText($fgNow, $sb, 512)
+@{ ok = $true; pressed = [string]$A.label; targetWindow = $sb.ToString() } | ConvertTo-Json -Compress
 `;
 
 export const SCROLL_SCRIPT =
