@@ -104,6 +104,8 @@ export type TurnToolCall = {
   command?: string;
   /** A failed call changed nothing, so it needs a retry rather than verification. */
   isError?: boolean;
+  /** Failure text, so the self-heal gate can tell a fixable error from a hard blocker. */
+  error?: string;
   /**
    * Caller's own mutation verdict (Granted classifies this per call from the
    * real arguments). It is argument-aware, so it wins over the name/action
