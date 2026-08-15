@@ -167,3 +167,32 @@ describe("buildEmbeddedRunPayloads tool-error warnings", () => {
     });
   });
 });
+
+describe("unverified-claim warning in reply payloads", () => {
+  it("marks a claimed file write that was never read back", () => {
+    const payloads = buildPayloads({
+      assistantTexts: ["The file has been created and contains: hello."],
+      toolMetas: [{ toolName: "write", mutating: true }],
+    });
+    expect(payloads.some((p) => p.text?.includes("Unverified"))).toBe(true);
+  });
+
+  it("stays silent once the agent read the result back", () => {
+    const payloads = buildPayloads({
+      assistantTexts: ["The file has been created and contains: hello."],
+      toolMetas: [
+        { toolName: "write", mutating: true },
+        { toolName: "read", mutating: false },
+      ],
+    });
+    expect(payloads.some((p) => p.text?.includes("Unverified"))).toBe(false);
+  });
+
+  it("stays silent for a plain conversational answer", () => {
+    const payloads = buildPayloads({
+      assistantTexts: ["Paris is the capital of France."],
+      toolMetas: [],
+    });
+    expect(payloads.some((p) => p.text?.includes("Unverified"))).toBe(false);
+  });
+});

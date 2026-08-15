@@ -27,8 +27,14 @@ import {
 import { isExecLikeToolName, type ToolErrorSummary } from "../../tool-error-summary.js";
 import { describesUnappliedChange, UNAPPLIED_CHANGE_WARNING } from "../../unapplied-change.js";
 import { isLikelyMutatingToolName } from "../../tool-mutation.js";
+import { buildUnverifiedClaimWarning } from "../../verify-on-stop.js";
 
-type ToolMetaEntry = { toolName: string; meta?: string };
+type ToolMetaEntry = {
+  toolName: string;
+  meta?: string;
+  isError?: boolean;
+  mutating?: boolean;
+};
 type ToolErrorWarningPolicy = {
   showWarning: boolean;
   includeDetails: boolean;
@@ -371,6 +377,25 @@ export function buildEmbeddedRunPayloads(params: {
     })
   ) {
     replyItems.push({ text: UNAPPLIED_CHANGE_WARNING, isError: true });
+  }
+
+  // The turn did change something and said so, but never read the result back.
+  // The claim may well be right — we only mark that nobody checked, so the user
+  // knows to treat it as unconfirmed rather than reported fact.
+  else {
+    const unverified = buildUnverifiedClaimWarning({
+      toolCalls: params.toolMetas.map((entry) => ({
+        name: entry.toolName,
+        action: entry.meta,
+        command: entry.meta,
+        isError: entry.isError,
+        mutating: entry.mutating,
+      })),
+      replyText: params.assistantTexts.join("\n"),
+    });
+    if (unverified) {
+      replyItems.push({ text: unverified, isError: true });
+    }
   }
 
   const hasAudioAsVoiceTag = replyItems.some((item) => item.audioAsVoice);
