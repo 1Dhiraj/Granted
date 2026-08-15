@@ -53,6 +53,14 @@ export function isHeartbeatContentEffectivelyEmpty(content: string | undefined |
     if (/^[-*+]\s*(\[[\sXx]?\]\s*)?$/.test(trimmed)) {
       continue;
     }
+    // Skip code-fence markers. The shipped template wraps its "keep this file
+    // empty to skip heartbeat API calls" note in a ```markdown block, and those
+    // two fence lines were the only thing making the file look actionable — so
+    // every install woke a model every couple of hours to read a file that told
+    // it not to. Fences carry no task; only what is between them can.
+    if (/^(?:```|~~~)/.test(trimmed)) {
+      continue;
+    }
     // Found a non-empty, non-comment line - there's actionable content
     return false;
   }

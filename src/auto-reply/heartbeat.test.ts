@@ -171,6 +171,34 @@ describe("isHeartbeatContentEffectivelyEmpty", () => {
     expect(isHeartbeatContentEffectivelyEmpty(null)).toBe(false);
   });
 
+  // Regression: the shipped template is a docs page copied into the workspace
+  // verbatim, so the ```markdown fence around its "keep this file empty" note
+  // was the only non-comment content — every install woke a model every couple
+  // of hours to read a file telling it there was nothing to do.
+  it("treats the shipped template as empty despite its code fence", () => {
+    const shippedTemplate = [
+      "# HEARTBEAT.md Template",
+      "",
+      "```markdown",
+      "# Keep this file empty (or with only comments) to skip heartbeat API calls.",
+      "",
+      "# Add tasks below when you want the agent to check something periodically.",
+      "```",
+      "",
+    ].join("\n");
+    expect(isHeartbeatContentEffectivelyEmpty(shippedTemplate)).toBe(true);
+  });
+
+  it("ignores both fence styles", () => {
+    expect(isHeartbeatContentEffectivelyEmpty("```\n# nothing\n```")).toBe(true);
+    expect(isHeartbeatContentEffectivelyEmpty("~~~\n# nothing\n~~~")).toBe(true);
+  });
+
+  it("still sees a real task written inside a fence", () => {
+    const withTask = ["```markdown", "Check the deploy queue every morning", "```"].join("\n");
+    expect(isHeartbeatContentEffectivelyEmpty(withTask)).toBe(false);
+  });
+
   it("returns true for empty string", () => {
     expect(isHeartbeatContentEffectivelyEmpty("")).toBe(true);
   });
