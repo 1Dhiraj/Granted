@@ -521,13 +521,29 @@ $up = 0x0004
 if ($btn -eq 'right') { $down = 0x0008; $up = 0x0010 }
 if ($btn -eq 'middle') { $down = 0x0020; $up = 0x0040 }
 [DeskNative]::mouse_event($down, 0, 0, 0, [UIntPtr]::Zero)
+# A real press has a measurable hold. Some controls ignore a down/up pair sent in
+# the same instant, which looked like "the click did nothing".
+Start-Sleep -Milliseconds 40
 [DeskNative]::mouse_event($up, 0, 0, 0, [UIntPtr]::Zero)
 if ($A.double) {
   Start-Sleep -Milliseconds 80
   [DeskNative]::mouse_event($down, 0, 0, 0, [UIntPtr]::Zero)
+  Start-Sleep -Milliseconds 40
   [DeskNative]::mouse_event($up, 0, 0, 0, [UIntPtr]::Zero)
 }
-@{ ok = $true; clicked = @{ x = [int]$A.x; y = [int]$A.y; button = $(if ($btn) { $btn } else { 'left' }) } } | ConvertTo-Json -Compress -Depth 4
+# Clicking cannot know whether the right thing was hit, so report where the
+# pointer actually was and which window ended up in front instead of asserting
+# success. The caller verifies by reading the UI back.
+Start-Sleep -Milliseconds 80
+$fgAfter = [DeskNative]::GetForegroundWindow()
+$sb = New-Object System.Text.StringBuilder 512
+[void][DeskNative]::GetWindowText($fgAfter, $sb, 512)
+@{
+  ok = $true
+  clicked = @{ x = [int]$A.x; y = [int]$A.y; button = $(if ($btn) { $btn } else { 'left' }) }
+  windowAfter = $sb.ToString()
+  note = 'Input was sent; this does NOT confirm the intended control was hit. Verify by reading the UI (snapshot/read) before reporting the result.'
+} | ConvertTo-Json -Compress -Depth 4
 `;
 
 export const TYPE_SCRIPT =
@@ -626,11 +642,22 @@ if ($op -eq 'set') {
   }
   @{ ok = $true; set = $true; chars = $text.Length } | ConvertTo-Json -Compress
 } else {
+  # Reading the clipboard can genuinely fail (wrong threading model, another app
+  # holding it open). Swallowing that and returning an empty string made a
+  # failure indistinguishable from an empty clipboard, so the caller would report
+  # "the clipboard is empty" when it had simply never been read.
   $text = ''
-  try { $text = [System.Windows.Forms.Clipboard]::GetText() } catch { }
+  $readOk = $true
+  $readErr = ''
+  try { $text = [System.Windows.Forms.Clipboard]::GetText() } catch { $readOk = $false; $readErr = $_.Exception.Message }
+  if (-not $readOk) {
+    @{ ok = $false; error = 'could not read the clipboard: ' + $readErr } | ConvertTo-Json -Compress
+    exit 0
+  }
+  if ($null -eq $text) { $text = '' }
   $truncated = $false
   if ($text.Length -gt 8000) { $text = $text.Substring(0, 8000); $truncated = $true }
-  @{ ok = $true; text = $text; truncated = $truncated } | ConvertTo-Json -Compress
+  @{ ok = $true; text = $text; truncated = $truncated; empty = ($text.Length -eq 0) } | ConvertTo-Json -Compress
 }
 `;
 
@@ -638,8 +665,33 @@ export const PASTE_SCRIPT =
   PREAMBLE +
   `
 Add-Type -AssemblyName System.Windows.Forms
+
+# Ctrl+V goes wherever focus is. Same hazard as any other shortcut: if focus
+# moved between deciding to paste and pasting, the text lands in the user's own
+# window. Refuse rather than guess.
+$fgBefore = [DeskNative]::GetForegroundWindow()
+
+# The clipboard belongs to the user, not to us. Pasting used to overwrite
+# whatever they had copied and never put it back, silently destroying their
+# clipboard as a side effect of an unrelated task.
+$previousClipboard = $null
+$hadPrevious = $false
+try { $previousClipboard = [System.Windows.Forms.Clipboard]::GetText(); $hadPrevious = $true } catch { }
+
 [System.Windows.Forms.Clipboard]::SetText([string]$A.text)
 Start-Sleep -Milliseconds 150
+
+$fgNow = [DeskNative]::GetForegroundWindow()
+if ($fgNow -ne $fgBefore) {
+  if ($hadPrevious -and $previousClipboard) { try { [System.Windows.Forms.Clipboard]::SetText($previousClipboard) } catch { } }
+  @{
+    ok = $false
+    aborted = 'focus-changed'
+    error = 'the foreground window changed before pasting - nothing was pasted, because it would have gone to the wrong window. Re-focus the target and retry.'
+  } | ConvertTo-Json -Compress
+  exit 0
+}
+
 [DeskNative]::keybd_event(0x11, 0, 0, [UIntPtr]::Zero)
 Start-Sleep -Milliseconds 30
 [DeskNative]::keybd_event(0x56, 0, 0, [UIntPtr]::Zero)
@@ -647,7 +699,20 @@ Start-Sleep -Milliseconds 30
 [DeskNative]::keybd_event(0x56, 0, 2, [UIntPtr]::Zero)
 [DeskNative]::keybd_event(0x11, 0, 2, [UIntPtr]::Zero)
 Start-Sleep -Milliseconds 150
-@{ ok = $true; pastedChars = ([string]$A.text).Length; note = 'clipboard now contains the pasted text' } | ConvertTo-Json -Compress
+
+$restored = $false
+if ($hadPrevious -and $previousClipboard) {
+  try { [System.Windows.Forms.Clipboard]::SetText($previousClipboard); $restored = $true } catch { }
+}
+$sb = New-Object System.Text.StringBuilder 512
+[void][DeskNative]::GetWindowText($fgNow, $sb, 512)
+@{
+  ok = $true
+  pastedChars = ([string]$A.text).Length
+  targetWindow = $sb.ToString()
+  clipboardRestored = $restored
+  note = 'Keys were sent; verify the text actually landed by reading the field back.'
+} | ConvertTo-Json -Compress
 `;
 
 export const READ_SCRIPT =
