@@ -12,7 +12,7 @@ export async function readMemoryFile(params: {
   relPath: string;
   from?: number;
   lines?: number;
-}): Promise<{ text: string; path: string }> {
+}): Promise<{ text: string; path: string; missing?: boolean }> {
   const rawPath = params.relPath.trim();
   if (!rawPath) {
     throw new Error("path required");
@@ -46,22 +46,31 @@ export async function readMemoryFile(params: {
       } catch {}
     }
   }
+  // Three different problems used to share the message "path required", so a
+  // caller that asked for a real file outside the memory area was told its
+  // argument was missing. Say which rule was broken — without echoing the
+  // resolved absolute path, which would leak layout to an untrusted caller.
   if (!allowedWorkspace && !allowedAdditional) {
-    throw new Error("path required");
+    throw new Error(
+      "path is outside the memory area: only files under the workspace memory directory (or a configured extra memory path) can be read",
+    );
   }
   if (!absPath.endsWith(".md")) {
-    throw new Error("path required");
+    throw new Error("only .md memory files can be read");
   }
+  // A file that does not exist is not an empty file. Returning "" for both let a
+  // caller report "that memory is empty" about something it never found — the
+  // same silent-failure shape as a clipboard read that hides its own error.
   const statResult = await statRegularFile(absPath);
   if (statResult.missing) {
-    return { text: "", path: relPath };
+    return { text: "", path: relPath, missing: true };
   }
   let content: string;
   try {
     content = await fs.readFile(absPath, "utf-8");
   } catch (err) {
     if (isFileMissingError(err)) {
-      return { text: "", path: relPath };
+      return { text: "", path: relPath, missing: true };
     }
     throw err;
   }
@@ -81,7 +90,7 @@ export async function readAgentMemoryFile(params: {
   relPath: string;
   from?: number;
   lines?: number;
-}): Promise<{ text: string; path: string }> {
+}): Promise<{ text: string; path: string; missing?: boolean }> {
   const settings = resolveMemorySearchConfig(params.cfg, params.agentId);
   if (!settings) {
     throw new Error("memory search disabled");
