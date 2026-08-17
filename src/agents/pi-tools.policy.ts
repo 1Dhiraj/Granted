@@ -25,8 +25,15 @@ import { isToolAllowedByPolicies, isToolAllowedByPolicyName } from "./tool-polic
 import { normalizeToolName } from "./tool-policy.js";
 
 /**
- * Tools always denied for sub-agents regardless of depth.
- * These are system-level or interactive tools that sub-agents should never use.
+ * Tools denied to sub-agents BY DEFAULT, at every depth. System-level or
+ * interactive tools a spawned helper has no business using.
+ *
+ * Not an absolute guarantee, despite the name: `resolveSubagentToolPolicy`
+ * filters this list against the operator's explicit `tools.subagents.tools.allow`
+ * / `alsoAllow`, so a deliberate opt-in can hand a sub-agent even `gateway`.
+ * That is the intended precedence — the operator outranks a default — but do not
+ * treat membership here as an invariant when reasoning about what a sub-agent
+ * can reach.
  */
 const SUBAGENT_TOOL_DENY_ALWAYS = [
   // System admin - dangerous from subagent
