@@ -13,7 +13,17 @@ const BLOCKED_HOSTNAMES = new Set([
   "metadata.google.internal",
 ]);
 
-function isTrustedPrivateHostname(hostname: string): boolean {
+/**
+ * True when the hostname is one we treat as sensitive/internal — loopback names
+ * and the cloud metadata endpoint, which is a classic SSRF target.
+ *
+ * Named for what it matches. The previous name, `isTrustedPrivateHostname`,
+ * returned true for entries in BLOCKED_HOSTNAMES: anyone reading it as an
+ * allow-check ("this host is trusted, let it through") would invert the meaning
+ * and open exactly the hole the list exists to close. It is only ever used to
+ * RAISE a finding.
+ */
+function isSensitiveInternalHostname(hostname: string): boolean {
   const normalized = normalizeLowercaseStringOrEmpty(hostname);
   return normalized.length > 0 && BLOCKED_HOSTNAMES.has(normalized);
 }
@@ -101,7 +111,7 @@ export function collectBrowserSecurityAuditFindings(ctx: OpenClawPluginSecurityA
     }
     if (
       isPrivateNetworkOptInEnabled(resolved.ssrfPolicy) &&
-      (isTrustedPrivateHostname(url.hostname) || isPrivateIpAddress(url.hostname))
+      (isSensitiveInternalHostname(url.hostname) || isPrivateIpAddress(url.hostname))
     ) {
       findings.push({
         checkId: "browser.remote_cdp_private_host",
