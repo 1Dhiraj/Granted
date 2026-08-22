@@ -2,6 +2,7 @@ import type { OpenClawConfig } from "../config/config.js";
 import { compileConfigRegex } from "../security/config-regex.js";
 import { resolveNodeRequireFromMeta } from "./node-require.js";
 import { replacePatternBounded } from "./redact-bounded.js";
+import { redactKnownSecrets } from "./redact-known-secrets.js";
 
 const requireConfig = resolveNodeRequireFromMeta(import.meta.url);
 
@@ -132,10 +133,16 @@ export function redactSensitiveText(text: string, options?: RedactOptions): stri
     return text;
   }
   const patterns = resolvePatterns(resolved.patterns);
+  // Exact-value masking runs regardless of the pattern list. The patterns catch
+  // secrets that LOOK like secrets; a bare credential read straight out of a
+  // file has no surrounding shape to match, and only an exact comparison finds
+  // it. Running it even when patterns are empty means turning patterns off
+  // never silently turns credential masking off too.
+  const withoutKnownSecrets = redactKnownSecrets(text);
   if (!patterns.length) {
-    return text;
+    return withoutKnownSecrets;
   }
-  return redactText(text, patterns);
+  return redactText(withoutKnownSecrets, patterns);
 }
 
 export function redactToolDetail(detail: string): string {
